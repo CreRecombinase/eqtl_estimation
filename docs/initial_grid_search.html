@@ -310,10 +310,16 @@ div.tocify {
 
 
 <p><strong>Last updated:</strong> 2017-03-09</p>
-<p><strong>Code version:</strong> 37c7712</p>
+<p><strong>Code version:</strong> 741d7df</p>
 <div id="introduction" class="section level2">
 <h2>Introduction:</h2>
 <p>This is the result of running RSSR on Whole Blood eQTL, using the 1 thousand genomes LD panel</p>
+<pre class="r"><code>library(dplyr)
+library(ggplot2)
+library(tidyr)
+library(RColumbo)
+lnz_df &lt;- readRDS(&quot;../data/GTEx_rssr_results/Whole_Blood/lnzdf.RDS&quot;)
+head(lnz_df) </code></pre>
 <pre><code># A tibble: 6 × 7
   log10odds          lnZ  sigb chunk chrom fgeneid      tissue
       &lt;dbl&gt;        &lt;dbl&gt; &lt;dbl&gt; &lt;int&gt; &lt;int&gt;   &lt;dbl&gt;       &lt;chr&gt;
@@ -323,26 +329,37 @@ div.tocify {
 4 -2.298853  -51.8068613 0.400     1     1  186470 Whole_Blood
 5 -1.995635 -116.8349443 0.400     1     1  186470 Whole_Blood
 6 -4.999996    0.4294538 0.675     1     1  186470 Whole_Blood</code></pre>
-<p>The <code>lnZ</code> column represents the log variational lower bound for the combination of <span class="math inline">\(\sigma_\beta\)</span> (<code>sigb</code>) and <span class="math inline">\(\theta=\log_{10}{\frac{\pi}{1-\pi}}\)</span> (<code>log10odds</code>) values used on chromosome <code>chrom</code> chunk number <code>chunk</code>. Chunks are at most 25000 SNPs. If there are <span class="math inline">\(P\)</span> chunks in the genome, then let’s call <span class="math inline">\(f_{p,g,i,j}(\theta_i,\sigma_{\beta,j},\hat{\beta}_g,\hat{s}_g)\)</span> the log-variational lower bound for gene <span class="math inline">\(g\)</span>, chunk <span class="math inline">\(p\)</span>, and grid entry <span class="math inline">\(i,j\)</span>.</p>
+<p>The <code>lnZ</code> column represents the log variational lower bound for the combination of <span class="math inline">\(\sigma_\beta\)</span> (<code>sigb</code>) and <span class="math inline">\(\theta=\log_{10}{\frac{\pi}{1-\pi}}\)</span> (<code>log10odds</code>) values used on chromosome <code>chrom</code> chunk number <code>chunk</code>. Chunks are at most 25000 SNPs. If there are <span class="math inline">\(P\)</span> chunks in the genome, then let’s call:</p>
+<p><span class="math display">\[f_{p,g,i,j}(\theta_i,\sigma_{\beta,j},\hat{\beta}_{g,p},\hat{s}_{g,p})\]</span></p>
+<p>the log-variational lower bound for gene <span class="math inline">\(g\)</span>, chunk <span class="math inline">\(p\)</span>, and grid entry <span class="math inline">\(i,j\)</span>.</p>
 </div>
 <div id="summarizing-for-one-gene" class="section level2">
 <h2>Summarizing for one gene</h2>
 <p>A key assumption of my model is that the chunks are independent. Let’s test that assumption by visualizing <span class="math inline">\(lnZ\)</span> across the chunks. This plot shows the sum of the variational lower bound (<code>lnZ</code>) for each chunk of each chromosome across the 25(5x5) combinations of parameter values. <span class="math display">\[ f_{p,g}(\hat{\beta}_g,\hat{s}_g)=\sum_{i=1}^5 \sum_{j=1}^5 f_{p,g,i,j}(\theta_i,{\sigma_{\beta}}_j,\hat{\beta}_{g,p},\hat{s}_{g,p})\]</span></p>
+<pre class="r"><code>lnz_df &lt;- distinct(lnz_df,chunk,chrom) %&gt;% mutate(chunk_i=1:n()) %&gt;% group_by(chrom) %&gt;% mutate(chunk_p=(chunk-1)/sum(chunk)) %&gt;% ungroup() %&gt;% inner_join(lnz_df) %&gt;% mutate(chrom_chunk=chrom+chunk_p)</code></pre>
 <pre><code>Joining, by = c(&quot;chunk&quot;, &quot;chrom&quot;)</code></pre>
-<p><img src="figure/initial_grid_search.Rmd/unnamed-chunk-3-1.png" width="672" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>lnz_df_g &lt;- group_by(lnz_df,chrom_chunk,fgeneid) %&gt;% summarize(sum_lnZ=sum(lnZ)) %&gt;% ungroup()
+
+ggplot(lnz_df_g)+geom_point(aes(x=chrom_chunk,y=sum_lnZ,col=factor(fgeneid)))+guides(col=guide_legend(title=&quot;Gene&quot;))+ggtitle(&quot;Sum of variational lower across the genome&quot;,subtitle = &quot;Summation over 5x5 grid of parameter values for each 25k chunk&quot;)</code></pre>
+<p><img src="figure/initial_grid_search.Rmd/summ_one_gene-1.png" width="672" style="display: block; margin: auto;" /></p>
 <p>It looks like the variational lower bound for part of chromosome 6 is (occasionally) really high. Let’s remove it. (This likely contains the HLA region)</p>
 <pre class="r"><code>lnz_df_g &lt;- filter(lnz_df_g,sum_lnZ&lt;0)
 
 ggplot(lnz_df_g)+geom_point(aes(x=chrom_chunk,y=sum_lnZ,col=factor(fgeneid)))+guides(col=guide_legend(title=&quot;Gene&quot;))</code></pre>
-<p><img src="figure/initial_grid_search.Rmd/unnamed-chunk-4-1.png" width="672" style="display: block; margin: auto;" /></p>
+<p><img src="figure/initial_grid_search.Rmd/filter_genes-1.png" width="672" style="display: block; margin: auto;" /></p>
 </div>
 <div id="parameter-estimates-across-the-genome" class="section level2">
 <h2>Parameter estimates across the genome</h2>
 <p>Let’s look at values of <span class="math inline">\(\sigma_{\beta,j}\)</span> and <span class="math inline">\(\theta_i\)</span> that give the highest variational lower bounds for each gene</p>
 <p><span class="math display">\[\hat{\sigma}_{\beta,p}=\underset{j}{\arg \max} f_{p,g,i,j}(\theta_i,\sigma_{\beta,j},\hat{\beta}_{g,p},\hat{s}_{g,p})  \]</span> <span class="math display">\[\hat{\theta}_p=\underset{i}{\arg \max} f_{p,g,i,j}(\theta_i,\sigma_{\beta,j},\hat{\beta}_g,\hat{s}_g)\]</span></p>
-<p><img src="figure/initial_grid_search.Rmd/unnamed-chunk-5-1.png" width="672" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>max_param &lt;- group_by(lnz_df,chrom,chunk,fgeneid) %&gt;% filter(lnZ==max(lnZ))
+ggplot(max_param)+  geom_point(aes(x=chrom_chunk,y=sigb,col=factor(fgeneid)))+
+  guides(col=guide_legend(title=&quot;Gene&quot;))+
+  ggtitle(expression(sigma[beta]),subtitle = &quot;Maximum perchoromosomal chunk&quot;)+
+  xlab(&quot;chromosome&quot;)+ylab(expression(sigma[beta]))</code></pre>
+<p><img src="figure/initial_grid_search.Rmd/max_est-1.png" width="672" style="display: block; margin: auto;" /></p>
 <pre class="r"><code>ggplot(max_param)+geom_point(aes(x=chrom_chunk,y=log10odds,col=factor(fgeneid)))+guides(col=guide_legend(title=&quot;Gene&quot;))+ggtitle(expression(theta),subtitle = &quot;Maximum per chromosomal chunk&quot;)+xlab(&quot;chromosome&quot;)+ylab(expression(theta))</code></pre>
-<p><img src="figure/initial_grid_search.Rmd/unnamed-chunk-6-1.png" width="672" style="display: block; margin: auto;" /></p>
+<p><img src="figure/initial_grid_search.Rmd/max_est_2-1.png" width="672" style="display: block; margin: auto;" /></p>
 <!-- ## Gene information -->
 <!-- ```{r,echo=F} -->
 <!-- # fgeneids <- unique(lnz_df$fgeneid) -->
