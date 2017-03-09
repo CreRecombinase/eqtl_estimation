@@ -30,7 +30,7 @@ This is the result of running RSSR  on Whole Blood eQTL, using the 1 thousand ge
 
 ```{r,echo=F}
 lnz_df <- readRDS("../data/GTEx_rssr_results/Whole_Blood/lnzdf.RDS")
-head(lnz_df)
+head(lnz_df) 
 ```
 
 The `lnZ` column represents the log variational lower bound for the combination of $\sigma_\beta$ (`sigb`) and  $\theta=\log_{10}{\frac{\pi}{1-\pi}}$ (`log10odds`) values used on chromosome `chrom` chunk number  `chunk`. Chunks are at most 25000 SNPs. If there are $P$ chunks in the genome, then let's call $f_{p,g,i,j}(\theta_i,\sigma_{\beta,j},\hat{\beta}_g,\hat{s}_g)$ the log-variational lower bound for gene $g$, chunk $p$, and grid entry $i,j$. 
