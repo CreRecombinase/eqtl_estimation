@@ -1,0 +1,106 @@
+---
+title: "Results of first grid search"
+author: "Knoblauch Nicholas"
+date: 2017-03-02
+output: html_document
+---
+
+```{r read-chunk, include=FALSE, cache=FALSE}
+knitr::read_chunk("chunks.R")
+```
+
+```{r knitr-opts-chunk, include=FALSE}
+```
+
+**Last updated:** `r Sys.Date()`
+
+**Code version:** `r workflowr::extract_commit(".", 1)$sha1`
+
+```{r,echo=F}
+library(dplyr)
+library(ggplot2)
+library(tidyr)
+library(RColumbo)
+```
+
+
+## Introduction:
+
+This is the result of running RSSR  on Whole Blood eQTL, using the 1 thousand genomes LD panel
+
+```{r,echo=F}
+lnz_df <- readRDS("../data/GTEx_rssr_results/Whole_Blood/lnzdf.RDS")
+head(lnz_df)
+```
+
+The `lnZ` column represents the log variational lower bound for the combination of $\sigma_\beta$ (`sigb`) and  $\theta=\log_{10}{\frac{\pi}{1-\pi}}$ (`log10odds`) values used on chromosome `chrom` chunk number  `chunk`. Chunks are at most 25000 SNPs. If there are $P$ chunks in the genome, then let's call $f_{p,g,i,j}(\theta_i,\sigma_{\beta,j},\hat{\beta}_g,\hat{s}_g)$ the log-variational lower bound for gene $g$, chunk $p$, and grid entry $i,j$. 
+
+## Summarizing for one gene
+
+A key assumption of my model is that the chunks are independent. Let's test that assumption by visualizing $lnZ$ across the chunks.  This plot shows the sum of the variational lower bound (`lnZ`) for each chunk of each chromosome across the 25(5x5) combinations of parameter values. 
+$$ f_{p,g}(\hat{\beta}_g,\hat{s}_g)=\sum_{i=1}^5 \sum_{j=1}^5 f_{p,g,i,j}(\theta_i,{\sigma_{\beta}}_j,\hat{\beta}_{g,p},\hat{s}_{g,p})$$
+
+
+```{r, echo=F}
+lnz_df <- distinct(lnz_df,chunk,chrom) %>% mutate(chunk_i=1:n()) %>% group_by(chrom) %>% mutate(chunk_p=(chunk-1)/sum(chunk)) %>% ungroup() %>% inner_join(lnz_df) %>% mutate(chrom_chunk=chrom+chunk_p)
+lnz_df_g <- group_by(lnz_df,chrom_chunk,fgeneid) %>% summarize(sum_lnZ=sum(lnZ)) %>% ungroup()
+
+ggplot(lnz_df_g)+geom_point(aes(x=chrom_chunk,y=sum_lnZ,col=factor(fgeneid)))+guides(col=guide_legend(title="Gene"))+ggtitle("Sum of variational lower across the genome",subtitle = "Summation over 5x5 grid of parameter values for each 25k chunk")
+```
+
+It looks like the variational lower bound for part of chromosome 6 is (occasionally) really high. Let's remove it. (This likely contains the HLA region)
+
+
+```{r}
+lnz_df_g <- filter(lnz_df_g,sum_lnZ<0)
+
+ggplot(lnz_df_g)+geom_point(aes(x=chrom_chunk,y=sum_lnZ,col=factor(fgeneid)))+guides(col=guide_legend(title="Gene"))
+```
+
+
+## Parameter estimates across the genome
+
+Let's look at values of  $\sigma_{\beta,j}$ and $\theta_i$ that give the highest variational lower bounds for each gene
+
+$$\hat{\sigma}_{\beta,p}=\underset{j}{\arg \max} f_{p,g,i,j}(\theta_i,\sigma_{\beta,j},\hat{\beta}_{g,p},\hat{s}_{g,p})  $$
+$$\hat{\theta}_p=\underset{i}{\arg \max} f_{p,g,i,j}(\theta_i,\sigma_{\beta,j},\hat{\beta}_g,\hat{s}_g)$$
+
+```{r,echo=F}
+
+max_param <- group_by(lnz_df,chrom,chunk,fgeneid) %>% filter(lnZ==max(lnZ))
+ggplot(max_param)+  geom_point(aes(x=chrom_chunk,y=sigb,col=factor(fgeneid)))+
+  guides(col=guide_legend(title="Gene"))+
+  ggtitle(expression(sigma[beta]),subtitle = "Maximum perchoromosomal chunk")+
+  xlab("chromosome")+ylab(expression(sigma[beta]))
+
+```
+
+
+```{r}
+ggplot(max_param)+geom_point(aes(x=chrom_chunk,y=log10odds,col=factor(fgeneid)))+guides(col=guide_legend(title="Gene"))+ggtitle(expression(theta),subtitle = "Maximum per chromosomal chunk")+xlab("chromosome")+ylab(expression(theta))
+```
+
+
+<!-- ## Gene information -->
+
+
+<!-- ```{r,echo=F} -->
+<!-- # fgeneids <- unique(lnz_df$fgeneid) -->
+<!-- # eqtlf <- "/media/nwknoblauch/Data/GTEx/GTEx_eQTL/Whole_Blood/SNP.chr1_1_Whole_Blood.h5" -->
+<!-- #  -->
+<!-- # eqtlleg <- read_df_h5(eqtlf,as.character(fgeneids[1])) -->
+<!-- #  -->
+<!-- # as_snpleg <- read_df_h5("/media/nwknoblauch/Data/GTEx/GTEx_SNP_h5/Adipose_Subcutaneous.h5","SNPinfo") -->
+<!-- # wb_snpleg <- read_df_h5("/media/nwknoblauch/Data/GTEx/GTEx_SNP_h5/Whole_Blood.h5","SNPinfo") -->
+
+<!-- ``` -->
+
+
+
+
+
+## Session Information
+
+```{r session-info}
+sessionInfo()
+```
