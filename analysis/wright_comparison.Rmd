@@ -1,0 +1,180 @@
+---
+title: "Comparison of Wright et al. with varbvsr"
+author: "Nicholas Knoblauch"
+date: 2017-03-29
+output: html_document
+---
+
+<!-- The file analysis/chunks.R contains chunks that define default settings
+shared across the workflowr files. -->
+```{r read-chunk, include=FALSE, cache=FALSE}
+knitr::read_chunk("chunks.R")
+```
+
+<!-- Update knitr chunk options -->
+```{r knitr-opts-chunk, include=FALSE}
+```
+
+<!-- Insert the date the file was last updated -->
+```{r last-updated, echo=FALSE, results='asis'}
+```
+
+<!-- Insert the code version (Git commit SHA1) if Git repository exists and R
+ package git2r is installed -->
+```{r code-version, echo=FALSE, results='asis'}
+```
+
+
+```{r}
+library(rssr)
+
+
+compare_vb <- function(vb_path){
+  require(dplyr)
+  require(RColumbo)
+  tissue_name <- gsub(".+/([^/]+)_final.h5","\\1",vb_path)
+  data <- read_df_h5(vb_path,"summary") %>% rename(N=mean_N,
+                                                   alpha_sd=mean_sd,
+                                                   alpha_sd_sd=sd_sd,
+                                                   PVE=mean_pve) %>% mutate(method="varbvs") %>% 
+    select(fgeneid,N,PVE,alpha_sd,method) %>% mutate(tissue=tissue_name)
+  return(data)
+}
+
+compare_enet <- function(enet_path){
+  
+  tissue_name <- gsub(".+/TW_([^/]+)_0.5.db","\\1",enet_path)
+  data_db <- src_sqlite(enet_path,create=F)
+  data_weights <- collect(tbl(data_db,"weights"),n=Inf) %>% 
+    mutate(fgeneid=as.numeric(gsub("ENSG([0-9]+).[0-9]+","\\1",gene))) %>% 
+    group_by(fgeneid) %>% 
+    summarise(alpha_sd=sd(weight))
+  data_extra <- collect(tbl(data_db,"extra")) %>%  
+    mutate(fgeneid=as.numeric(gsub("ENSG([0-9]+).[0-9]+","\\1",gene))) %>% 
+    select(-gene,-genename,-pred.perf.pval,-pred.perf.qval) %>% 
+    inner_join(data_weights,by="fgeneid") %>% 
+    rename(PVE=pred.perf.R2,N=n.snps.in.model) %>% 
+    mutate(method="enet",tissue=tissue_name) %>% 
+    select(fgeneid,N,PVE,alpha_sd,method,tissue)
+  return(data_extra)
+}
+```
+
+
+<!-- Add your analysis here -->
+
+##Comparison to Wright et al. Heritability estimates
+
+```{r}
+library(dplyr)
+library(ggplot2)
+```
+
+
+
+```{r}
+h_dataf <- "../data/Wright/Wright_results/heritbest_final.csv"
+h_data <- read.table(h_dataf,header=T,sep=",",stringsAsFactors = F)
+h_data <- mutate(h_data,fgeneid=as.numeric(gsub("ENSG([0-9]+).[0-9]+","\\1",gid)))
+```
+
+```{r}
+dim(h_data)
+```
+
+```{r}
+hrf <- "../data/Wright/Wright_results/heritbest_colREADME.csv"
+h_cols <- read.table(hrf,header=T,sep=",",stringsAsFactors = F)
+h_cols
+```
+
+We're going to look at the top 10 genes (highest p-values)
+```{r}
+sig_h <- arrange(h_data,h2p) %>% slice(1:10) %>% arrange(desc(h2)) %>% select(expr,h2t,h2p,h2q,h2,geneName,gid,hugoproduct,fgeneid)
+
+
+```
+
+
+We're also going to look at PVE vs h for elastic net and varbvs
+
+```{r}
+
+
+bloodvbf <- "../data/cis_analysis/varbvs/Whole_Blood_final.h5"
+blood_vb <- compare_vb(bloodvbf)
+bloodenf <-  "../data/cis_analysis/enet/TW_Whole_Blood_0.5.db"
+blood_en <- compare_enet(bloodenf)
+
+
+vb_h <- inner_join(blood_vb,h_data) %>% select(fgeneid,N,PVE,alpha_sd,expr,h2t,h2p,h2q,h2,geneName,gid,hugoproduct)
+ggplot(vb_h,aes(x=PVE,y=h2))+geom_point()+geom_abline()
+
+
+
+```
+```{r}
+en_h <- inner_join(blood_en,h_data) %>% select(fgeneid,N,PVE,alpha_sd,expr,h2t,h2p,h2q,h2,geneName,gid,hugoproduct)
+ggplot(en_h,aes(x=PVE,y=h2))+geom_point()+geom_abline()
+```
+
+```{r}
+sig_vb <- inner_join(sig_h,blood_vb)
+
+
+write.table(sig_vb$fgeneid,"~/Dropbox/Columbo/analyses/Snakemake_scripts/Adipose_Subcutaneous_fgeneids.txt",col.names=F,row.names=F,sep="\n",quote=F)
+```
+
+##Trans RSS results
+
+
+```{r}
+
+wb_dataf <- "../data/GTEx_rssr_results/wright_high_h2_Whole_Blood.RDS"
+wb_rssr <- readRDS(wb_dataf)
+```
+
+```{r}
+
+```
+
+
+
+```{r}
+wb_rssr <- group_by(wb_rssr,fgeneid,snp_chunk) %>% mutate(normW=normalizeLogWeights(lnZ)) %>% ungroup()
+
+ggplot(wb_rssr,aes(log(lnZ)))+geom_histogram(bins=100)+facet_wrap(~fgeneid)
+ggplot(wb_rssr,aes(factor(snp_chunk),lnZ))+geom_boxplot(aes(col=factor(fgeneid)))
+```
+
+
+
+
+
+
+```{r}
+max_lnZ <- group_by(wb_rssr,fgeneid,snp_chunk) %>% filter(lnZ==max(lnZ)) %>% slice(1) %>% ungroup()
+
+ggplot(max_lnZ,aes(x=exp(logodds),y=sigb,col=factor(fgeneid)))+geom_point()
+
+```
+
+
+```{r}
+tot_lnZ <- group_by(wb_rssr,fgeneid,logodds,sigb) %>% mutate(norm_lnZ=normalizeLogWeights(lnZ),norm_sigb=norm_lnZ*sigb,norm_logodds=norm_lnZ*logodds)
+
+#tot_max_lnZ <- group_by(tot_lnZ,fgeneid) %>% filter(sum_lnZ==max(sum_lnZ)) %>% slice(1) %>% ungroup()
+
+ggplot(tot_lnZ,aes(x=norm_sigb,y=norm_logodds,col=factor(fgeneid)))+geom_point()
+```
+
+
+
+
+
+
+## Session information
+
+<!-- Insert the session information into the document -->
+```{r session-info}
+```

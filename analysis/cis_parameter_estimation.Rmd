@@ -1,0 +1,92 @@
+---
+title: "Estimating Cis heritability using varbvsr"
+author: "Knoblauch Nicholas"
+date: 2017-03-20
+output: html_document
+---
+
+<!-- The file analysis/chunks.R contains chunks that define default settings
+shared across the workflowr files. -->
+```{r read-chunk, include=FALSE, cache=FALSE}
+knitr::read_chunk("chunks.R")
+```
+
+<!-- Update knitr chunk options -->
+```{r knitr-opts-chunk, include=FALSE}
+```
+
+<!-- Insert the date the file was last updated -->
+```{r last-updated, echo=FALSE, results='asis'}
+```
+
+<!-- Insert the code version (Git commit SHA1) if Git repository exists and R
+ package git2r is installed -->
+```{r code-version, echo=FALSE, results='asis'}
+```
+
+<!-- Add your analysis here -->
+
+## Analyses of cis heritability was run on several tissue types
+
+```{r}
+
+compare_vb <- function(vb_path){
+  require(dplyr)
+  require(RColumbo)
+  tissue_name <- gsub(".+/([^/]+)_final.h5","\\1",vb_path)
+  data <- read_df_h5(vb_path,"summary") %>% rename(N=mean_N,
+                                                   alpha_sd=mean_sd,
+                                                   alpha_sd_sd=sd_sd,
+                                                   PVE=mean_pve) %>% mutate(method="varbvs") %>% 
+    select(fgeneid,N,PVE,alpha_sd,method) %>% mutate(tissue=tissue_name)
+  return(data)
+}
+
+compare_enet <- function(enet_path){
+  
+  tissue_name <- gsub(".+/TW_([^/]+)_0.5.db","\\1",enet_path)
+  data_db <- src_sqlite(enet_path,create=F)
+  data_weights <- collect(tbl(data_db,"weights"),n=Inf) %>% 
+    mutate(fgeneid=as.numeric(gsub("ENSG([0-9]+).[0-9]+","\\1",gene))) %>% 
+    group_by(fgeneid) %>% 
+    summarise(alpha_sd=sd(weight))
+  data_extra <- collect(tbl(data_db,"extra")) %>%  
+    mutate(fgeneid=as.numeric(gsub("ENSG([0-9]+).[0-9]+","\\1",gene))) %>% 
+    select(-gene,-genename,-pred.perf.pval,-pred.perf.qval) %>% 
+    inner_join(data_weights,by="fgeneid") %>% 
+    rename(PVE=pred.perf.R2,N=n.snps.in.model) %>% 
+    mutate(method="enet",tissue=tissue_name) %>% 
+    select(fgeneid,N,PVE,alpha_sd,method,tissue)
+  return(data_extra)
+}
+```
+
+
+##Analysis of cis eQTL by elastic net and variational bayes 
+
+```{r}
+
+bloodvbf <- "../data/cis_analysis/varbvs/Whole_Blood_final.h5"
+blood_vb <- compare_vb(bloodvbf)
+bloodenf <-  "~/Dropbox/eQTL/TW_Whole_Blood_0.5.db"
+blood_en <- compare_enet(bloodenf)
+
+#muscle_enetf <- "~/Dropbox/eQTL/TW_Muscle_Skeletal_0.5.db"
+#muscle_vbf <- "~/Dropbox/eQTL/Muscle_Skeletal_final.h5"
+
+
+```
+
+
+
+
+
+
+
+
+
+## Session information
+
+<!-- Insert the session information into the document -->
+```{r session-info}
+```

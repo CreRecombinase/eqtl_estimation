@@ -1,0 +1,11 @@
+---
+title: Results
+output: html_document
+---
+
+
+* [Analysis of Chunk size](chunk_comparison.html)
+* [Estimating Cis heritability using varbvsr](cis_parameter_estimation.html)
+* [Results of first grid search](initial_grid_search.html)
+* [Results of Second grid search](parameter_estimation2.html)
+* [Comparison of Wright et al. with varbvsr](wright_comparison.html)
