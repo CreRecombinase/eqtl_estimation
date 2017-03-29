@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+
+<head>
+
+<meta charset="utf-8">
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<meta name="generator" content="pandoc" />
+
+
+<meta name="author" content="Nicholas Knoblauch" />
+
+<meta name="date" content="2017-03-29" />
+
+<title>Comparison of Wright et al. with varbvsr</title>
+
+<script src="site_libs/jquery-1.11.3/jquery.min.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link href="site_libs/bootstrap-3.3.5/css/cosmo.min.css" rel="stylesheet" />
+<script src="site_libs/bootstrap-3.3.5/js/bootstrap.min.js"></script>
+<script src="site_libs/bootstrap-3.3.5/shim/html5shiv.min.js"></script>
+<script src="site_libs/bootstrap-3.3.5/shim/respond.min.js"></script>
+<script src="site_libs/jqueryui-1.11.4/jquery-ui.min.js"></script>
+<link href="site_libs/tocify-1.9.1/jquery.tocify.css" rel="stylesheet" />
+<script src="site_libs/tocify-1.9.1/jquery.tocify.js"></script>
+<script src="site_libs/navigation-1.1/tabsets.js"></script>
+<link href="site_libs/highlightjs-1.1/textmate.css" rel="stylesheet" />
+<script src="site_libs/highlightjs-1.1/highlight.js"></script>
+<link href="site_libs/font-awesome-4.5.0/css/font-awesome.min.css" rel="stylesheet" />
+
+<style type="text/css">code{white-space: pre;}</style>
+<style type="text/css">
+  pre:not([class]) {
+    background-color: white;
+  }
+</style>
+<script type="text/javascript">
+if (window.hljs && document.readyState && document.readyState === "complete") {
+   window.setTimeout(function() {
+      hljs.initHighlighting();
+   }, 0);
+}
+</script>
+
+
+
+<style type="text/css">
+h1 {
+  font-size: 34px;
+}
+h1.title {
+  font-size: 38px;
+}
+h2 {
+  font-size: 30px;
+}
+h3 {
+  font-size: 24px;
+}
+h4 {
+  font-size: 18px;
+}
+h5 {
+  font-size: 16px;
+}
+h6 {
+  font-size: 12px;
+}
+.table th:not([align]) {
+  text-align: left;
+}
+</style>
+
+
+</head>
+
+<body>
+
+<style type = "text/css">
+.main-container {
+  max-width: 940px;
+  margin-left: auto;
+  margin-right: auto;
+}
+code {
+  color: inherit;
+  background-color: rgba(0, 0, 0, 0.04);
+}
+img {
+  max-width:100%;
+  height: auto;
+}
+.tabbed-pane {
+  padding-top: 12px;
+}
+button.code-folding-btn:focus {
+  outline: none;
+}
+</style>
+
+
+<style type="text/css">
+/* padding for bootstrap navbar */
+body {
+  padding-top: 51px;
+  padding-bottom: 40px;
+}
+/* offset scroll position for anchor links (for fixed navbar)  */
+.section h1 {
+  padding-top: 56px;
+  margin-top: -56px;
+}
+
+.section h2 {
+  padding-top: 56px;
+  margin-top: -56px;
+}
+.section h3 {
+  padding-top: 56px;
+  margin-top: -56px;
+}
+.section h4 {
+  padding-top: 56px;
+  margin-top: -56px;
+}
+.section h5 {
+  padding-top: 56px;
+  margin-top: -56px;
+}
+.section h6 {
+  padding-top: 56px;
+  margin-top: -56px;
+}
+</style>
+
+<script>
+// manage active state of menu based on current page
+$(document).ready(function () {
+  // active menu anchor
+  href = window.location.pathname
+  href = href.substr(href.lastIndexOf('/') + 1)
+  if (href === "")
+    href = "index.html";
+  var menuAnchor = $('a[href="' + href + '"]');
+
+  // mark it active
+  menuAnchor.parent().addClass('active');
+
+  // if it's got a parent navbar menu mark it active as well
+  menuAnchor.closest('li.dropdown').addClass('active');
+});
+</script>
+
+
+<div class="container-fluid main-container">
+
+<!-- tabsets -->
+<script>
+$(document).ready(function () {
+  window.buildTabsets("TOC");
+});
+</script>
+
+<!-- code folding -->
+
+
+
+
+<script>
+$(document).ready(function ()  {
+
+    // move toc-ignore selectors from section div to header
+    $('div.section.toc-ignore')
+        .removeClass('toc-ignore')
+        .children('h1,h2,h3,h4,h5').addClass('toc-ignore');
+
+    // establish options
+    var options = {
+      selectors: "h1,h2,h3",
+      theme: "bootstrap3",
+      context: '.toc-content',
+      hashGenerator: function (text) {
+        return text.replace(/[.\\/?&!#<>]/g, '').replace(/\s/g, '_').toLowerCase();
+      },
+      ignoreSelector: ".toc-ignore",
+      scrollTo: 0
+    };
+    options.showAndHide = true;
+    options.smoothScroll = true;
+
+    // tocify
+    var toc = $("#TOC").tocify(options).data("toc-tocify");
+});
+</script>
+
+<style type="text/css">
+
+#TOC {
+  margin: 25px 0px 20px 0px;
+}
+@media (max-width: 768px) {
+#TOC {
+  position: relative;
+  width: 100%;
+}
+}
+
+
+.toc-content {
+  padding-left: 30px;
+  padding-right: 40px;
+}
+
+div.main-container {
+  max-width: 1200px;
+}
+
+div.tocify {
+  width: 20%;
+  max-width: 260px;
+  max-height: 85%;
+}
+
+@media (min-width: 768px) and (max-width: 991px) {
+  div.tocify {
+    width: 25%;
+  }
+}
+
+@media (max-width: 767px) {
+  div.tocify {
+    width: 100%;
+    max-width: none;
+  }
+}
+
+.tocify ul, .tocify li {
+  line-height: 20px;
+}
+
+.tocify-subheader .tocify-item {
+  font-size: 0.90em;
+  padding-left: 25px;
+  text-indent: 0;
+}
+
+.tocify .list-group-item {
+  border-radius: 0px;
+}
+
+
+</style>
+
+<!-- setup 3col/9col grid for toc_float and main content  -->
+<div class="row-fluid">
+<div class="col-xs-12 col-sm-4 col-md-3">
+<div id="TOC" class="tocify">
+</div>
+</div>
+
+<div class="toc-content col-xs-12 col-sm-8 col-md-9">
+
+
+
+
+<div class="navbar navbar-default  navbar-fixed-top" role="navigation">
+  <div class="container">
+    <div class="navbar-header">
+      <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#navbar">
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+      </button>
+      <a class="navbar-brand" href="index.html">eqtl_estimation</a>
+    </div>
+    <div id="navbar" class="navbar-collapse collapse">
+      <ul class="nav navbar-nav">
+        <li>
+  <a href="index.html">Home</a>
+</li>
+<li>
+  <a href="about.html">About</a>
+</li>
+<li>
+  <a href="license.html">License</a>
+</li>
+      </ul>
+      <ul class="nav navbar-nav navbar-right">
+        <li>
+  <a href="https://github.com/jdblischak/workflowr">
+    <span class="fa fa-github"></span>
+     
+  </a>
+</li>
+      </ul>
+    </div><!--/.nav-collapse -->
+  </div><!--/.container -->
+</div><!--/.navbar -->
+
+<div class="fluid-row" id="header">
+
+
+
+<h1 class="title toc-ignore">Comparison of Wright et al. with varbvsr</h1>
+<h4 class="author"><em>Nicholas Knoblauch</em></h4>
+<h4 class="date"><em>2017-03-29</em></h4>
+
+</div>
+
+
+<!-- The file analysis/chunks.R contains chunks that define default settings
+shared across the workflowr files. -->
+<!-- Update knitr chunk options -->
+<!-- Insert the date the file was last updated -->
+<!-- Insert the code version (Git commit SHA1) if Git repository exists and R
+ package git2r is installed -->
+<pre class="r"><code>library(rssr)
+
+
+compare_vb &lt;- function(vb_path){
+  require(dplyr)
+  require(RColumbo)
+  tissue_name &lt;- gsub(&quot;.+/([^/]+)_final.h5&quot;,&quot;\\1&quot;,vb_path)
+  data &lt;- read_df_h5(vb_path,&quot;summary&quot;) %&gt;% rename(N=mean_N,
+                                                   alpha_sd=mean_sd,
+                                                   alpha_sd_sd=sd_sd,
+                                                   PVE=mean_pve) %&gt;% mutate(method=&quot;varbvs&quot;) %&gt;% 
+    select(fgeneid,N,PVE,alpha_sd,method) %&gt;% mutate(tissue=tissue_name)
+  return(data)
+}
+
+compare_enet &lt;- function(enet_path){
+  
+  tissue_name &lt;- gsub(&quot;.+/TW_([^/]+)_0.5.db&quot;,&quot;\\1&quot;,enet_path)
+  data_db &lt;- src_sqlite(enet_path,create=F)
+  data_weights &lt;- collect(tbl(data_db,&quot;weights&quot;),n=Inf) %&gt;% 
+    mutate(fgeneid=as.numeric(gsub(&quot;ENSG([0-9]+).[0-9]+&quot;,&quot;\\1&quot;,gene))) %&gt;% 
+    group_by(fgeneid) %&gt;% 
+    summarise(alpha_sd=sd(weight))
+  data_extra &lt;- collect(tbl(data_db,&quot;extra&quot;)) %&gt;%  
+    mutate(fgeneid=as.numeric(gsub(&quot;ENSG([0-9]+).[0-9]+&quot;,&quot;\\1&quot;,gene))) %&gt;% 
+    select(-gene,-genename,-pred.perf.pval,-pred.perf.qval) %&gt;% 
+    inner_join(data_weights,by=&quot;fgeneid&quot;) %&gt;% 
+    rename(PVE=pred.perf.R2,N=n.snps.in.model) %&gt;% 
+    mutate(method=&quot;enet&quot;,tissue=tissue_name) %&gt;% 
+    select(fgeneid,N,PVE,alpha_sd,method,tissue)
+  return(data_extra)
+}</code></pre>
+<!-- Add your analysis here -->
+<div id="comparison-to-wright-et-al.-heritability-estimates" class="section level2">
+<h2>Comparison to Wright et al. Heritability estimates</h2>
+<pre class="r"><code>library(dplyr)
+library(ggplot2)</code></pre>
+<pre class="r"><code>h_dataf &lt;- &quot;../data/Wright/Wright_results/heritbest_final.csv&quot;
+h_data &lt;- read.table(h_dataf,header=T,sep=&quot;,&quot;,stringsAsFactors = F)
+h_data &lt;- mutate(h_data,fgeneid=as.numeric(gsub(&quot;ENSG([0-9]+).[0-9]+&quot;,&quot;\\1&quot;,gid)))</code></pre>
+<pre class="r"><code>dim(h_data)</code></pre>
+<pre><code>[1] 18392    29</code></pre>
+<pre class="r"><code>hrf &lt;- &quot;../data/Wright/Wright_results/heritbest_colREADME.csv&quot;
+h_cols &lt;- read.table(hrf,header=T,sep=&quot;,&quot;,stringsAsFactors = F)
+h_cols</code></pre>
+<pre><code>         Column                Example
+1       probeid          11741180_a_at
+2          expr            2.516516152
+3           h2t           -2.156444064
+4           h2p            0.984432293
+5           h2q            0.993984873
+6            h2           -0.255824913
+7           c2t            1.771502609
+8           c2p            0.038293923
+9           c2q            0.980625385
+10           c2            0.166386147
+11        ttype         protein_coding
+12     geneName                   A1BG
+13    geneName1                       
+14         gstr                      -
+15           g0                  chr19
+16           g1               58858172
+17           g2               58864865
+18           i1                       
+19           i2                       
+20          gid      ENSG00000121410.6
+21  hugoproduct alpha-1-B glycoprotein
+22    hugoalias                       
+23 hugoproduct2                       
+24     affylist                   A1BG
+25        ldmin                       
+26        ldmax                       
+27         ldkb                       
+28       extMHC                      0
+                                            Explanation
+1                                     Affy U19 probe ID
+2                                       mean expression
+3                                       h^2 t-statistic
+4                                           h^2 p-value
+5   h^2 q-value, accounting for all probe sets on array
+6                          h^2 estimate from REML model
+7                                       c^2 t-statistic
+8                                           c^2 p-value
+9   c^2 q-value, accounting for all probe sets on array
+10                         c^2 estimate from REML model
+11                                            gene type
+12                                          gene Symbol
+13        alternate gene Symbol, if more than one match
+14                                               strand
+15                                           chromosome
+16                                                start
+17                                                  end
+18 alternate gene start location if more than one match
+19   alternate gene end location if more than one match
+20                                      Ensembl gene ID
+21                           Official HUGO gene product
+22                            Other names gene known by
+23                 gene produce, if more than one match
+24                               Affy annotation symbol
+25          If gene in large LD block, start coordinate
+26            If gene in large LD block, end coordinate
+27                          distance in kb across block
+28               is gene in extended MHC region on chr6</code></pre>
+<p>We’re going to look at the top 10 genes (highest p-values)</p>
+<pre class="r"><code>sig_h &lt;- arrange(h_data,h2p) %&gt;% slice(1:10) %&gt;% arrange(desc(h2)) %&gt;% select(expr,h2t,h2p,h2q,h2,geneName,gid,hugoproduct,fgeneid)</code></pre>
+<p>We’re also going to look at PVE vs h for elastic net and varbvs</p>
+<pre class="r"><code>bloodvbf &lt;- &quot;../data/cis_analysis/varbvs/Whole_Blood_final.h5&quot;
+blood_vb &lt;- compare_vb(bloodvbf)
+bloodenf &lt;-  &quot;../data/cis_analysis/enet/TW_Whole_Blood_0.5.db&quot;
+blood_en &lt;- compare_enet(bloodenf)
+
+
+vb_h &lt;- inner_join(blood_vb,h_data) %&gt;% select(fgeneid,N,PVE,alpha_sd,expr,h2t,h2p,h2q,h2,geneName,gid,hugoproduct)</code></pre>
+<pre><code>Joining, by = &quot;fgeneid&quot;</code></pre>
+<pre class="r"><code>ggplot(vb_h,aes(x=PVE,y=h2))+geom_point()+geom_abline()</code></pre>
+<p><img src="figure/wright_comparison.Rmd/unnamed-chunk-7-1.png" width="672" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>en_h &lt;- inner_join(blood_en,h_data) %&gt;% select(fgeneid,N,PVE,alpha_sd,expr,h2t,h2p,h2q,h2,geneName,gid,hugoproduct)</code></pre>
+<pre><code>Joining, by = &quot;fgeneid&quot;</code></pre>
+<pre class="r"><code>ggplot(en_h,aes(x=PVE,y=h2))+geom_point()+geom_abline()</code></pre>
+<p><img src="figure/wright_comparison.Rmd/unnamed-chunk-8-1.png" width="672" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>sig_vb &lt;- inner_join(sig_h,blood_vb)</code></pre>
+<pre><code>Joining, by = &quot;fgeneid&quot;</code></pre>
+<pre class="r"><code>write.table(sig_vb$fgeneid,&quot;~/Dropbox/Columbo/analyses/Snakemake_scripts/Adipose_Subcutaneous_fgeneids.txt&quot;,col.names=F,row.names=F,sep=&quot;\n&quot;,quote=F)</code></pre>
+</div>
+<div id="trans-rss-results" class="section level2">
+<h2>Trans RSS results</h2>
+<pre class="r"><code>wb_dataf &lt;- &quot;../data/GTEx_rssr_results/wright_high_h2_Whole_Blood.RDS&quot;
+wb_rssr &lt;- readRDS(wb_dataf)</code></pre>
+<pre class="r"><code>wb_rssr &lt;- group_by(wb_rssr,fgeneid,snp_chunk) %&gt;% mutate(normW=normalizeLogWeights(lnZ)) %&gt;% ungroup()
+
+ggplot(wb_rssr,aes(log(lnZ)))+geom_histogram(bins=100)+facet_wrap(~fgeneid)</code></pre>
+<pre><code>Warning in log(lnZ): NaNs produced
+
+Warning in log(lnZ): NaNs produced</code></pre>
+<pre><code>Warning: Removed 115612 rows containing non-finite values (stat_bin).</code></pre>
+<p><img src="figure/wright_comparison.Rmd/unnamed-chunk-12-1.png" width="672" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>ggplot(wb_rssr,aes(factor(snp_chunk),lnZ))+geom_boxplot(aes(col=factor(fgeneid)))</code></pre>
+<p><img src="figure/wright_comparison.Rmd/unnamed-chunk-12-2.png" width="672" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>max_lnZ &lt;- group_by(wb_rssr,fgeneid,snp_chunk) %&gt;% filter(lnZ==max(lnZ)) %&gt;% slice(1) %&gt;% ungroup()
+
+ggplot(max_lnZ,aes(x=exp(logodds),y=sigb,col=factor(fgeneid)))+geom_point()</code></pre>
+<p><img src="figure/wright_comparison.Rmd/unnamed-chunk-13-1.png" width="672" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>tot_lnZ &lt;- group_by(wb_rssr,fgeneid,logodds,sigb) %&gt;% mutate(norm_lnZ=normalizeLogWeights(lnZ),norm_sigb=norm_lnZ*sigb,norm_logodds=norm_lnZ*logodds)
+
+#tot_max_lnZ &lt;- group_by(tot_lnZ,fgeneid) %&gt;% filter(sum_lnZ==max(sum_lnZ)) %&gt;% slice(1) %&gt;% ungroup()
+
+ggplot(tot_lnZ,aes(x=norm_sigb,y=norm_logodds,col=factor(fgeneid)))+geom_point()</code></pre>
+<p><img src="figure/wright_comparison.Rmd/unnamed-chunk-14-1.png" width="672" style="display: block; margin: auto;" /></p>
+</div>
+<div id="session-information" class="section level2">
+<h2>Session information</h2>
+<!-- Insert the session information into the document -->
+<pre class="r"><code>sessionInfo()</code></pre>
+<pre><code>R version 3.3.3 (2017-03-06)
+Platform: x86_64-pc-linux-gnu (64-bit)
+Running under: Ubuntu 16.04.2 LTS
+
+locale:
+ [1] LC_CTYPE=en_US.UTF-8       LC_NUMERIC=C              
+ [3] LC_TIME=en_US.UTF-8        LC_COLLATE=en_US.UTF-8    
+ [5] LC_MONETARY=en_US.UTF-8    LC_MESSAGES=en_US.UTF-8   
+ [7] LC_PAPER=en_US.UTF-8       LC_NAME=C                 
+ [9] LC_ADDRESS=C               LC_TELEPHONE=C            
+[11] LC_MEASUREMENT=en_US.UTF-8 LC_IDENTIFICATION=C       
+
+attached base packages:
+[1] stats     graphics  grDevices utils     datasets  methods   base     
+
+other attached packages:
+[1] rssr_0.1-0      lazyeval_0.2.0  h5_0.9.8        RColumbo_0.1.0 
+[5] workflowr_0.4.0 rmarkdown_1.3   ggplot2_2.2.1   tidyr_0.6.1    
+[9] dplyr_0.5.0    
+
+loaded via a namespace (and not attached):
+ [1] Rcpp_0.12.10        knitr_1.15.1        magrittr_1.5       
+ [4] munsell_0.4.3       colorspace_1.3-2    R6_2.2.0           
+ [7] stringr_1.2.0       plyr_1.8.4          tools_3.3.3        
+[10] grid_3.3.3          gtable_0.2.0        DBI_0.6            
+[13] git2r_0.18.0        htmltools_0.3.5     RcppParallel_4.3.20
+[16] yaml_2.1.14         assertthat_0.1      rprojroot_1.2      
+[19] digest_0.6.12       tibble_1.2          memoise_1.0.0      
+[22] RSQLite_1.1-2       evaluate_0.10       labeling_0.3       
+[25] stringi_1.1.2       scales_0.4.1        backports_1.0.5    </code></pre>
+</div>
+
+<hr>
+<p>
+    This <a href="http://rmarkdown.rstudio.com">R Markdown</a> site was created with <a href="https://github.com/jdblischak/workflowr">workflowr</a>
+</p>
+<hr>
+
+<!-- To enable disqus, uncomment the section below and provide your disqus_shortname -->
+
+<!-- disqus
+  <div id="disqus_thread"></div>
+    <script type="text/javascript">
+        /* * * CONFIGURATION VARIABLES: EDIT BEFORE PASTING INTO YOUR WEBPAGE * * */
+        var disqus_shortname = 'rmarkdown'; // required: replace example with your forum shortname
+
+        /* * * DON'T EDIT BELOW THIS LINE * * */
+        (function() {
+            var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+            dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+            (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+        })();
+    </script>
+    <noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+    <a href="http://disqus.com" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>
+-->
+
+
+</div>
+</div>
+
+</div>
+
+<script>
+
+// add bootstrap table styles to pandoc tables
+function bootstrapStylePandocTables() {
+  $('tr.header').parent('thead').parent('table').addClass('table table-condensed');
+}
+$(document).ready(function () {
+  bootstrapStylePandocTables();
+});
+
+
+</script>
+
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+  (function () {
+    var script = document.createElement("script");
+    script.type = "text/javascript";
+    script.src  = "https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML";
+    document.getElementsByTagName("head")[0].appendChild(script);
+  })();
+</script>
+
+</body>
+</html>

@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+
+<head>
+
+<meta charset="utf-8">
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<meta name="generator" content="pandoc" />
+
+
+<meta name="author" content="Knoblauch Nicholas" />
+
+<meta name="date" content="2017-03-24" />
+
+<title>Analysis of Chunk size</title>
+
+<script src="site_libs/jquery-1.11.3/jquery.min.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link href="site_libs/bootstrap-3.3.5/css/cosmo.min.css" rel="stylesheet" />
+<script src="site_libs/bootstrap-3.3.5/js/bootstrap.min.js"></script>
+<script src="site_libs/bootstrap-3.3.5/shim/html5shiv.min.js"></script>
+<script src="site_libs/bootstrap-3.3.5/shim/respond.min.js"></script>
+<script src="site_libs/jqueryui-1.11.4/jquery-ui.min.js"></script>
+<link href="site_libs/tocify-1.9.1/jquery.tocify.css" rel="stylesheet" />
+<script src="site_libs/tocify-1.9.1/jquery.tocify.js"></script>
+<script src="site_libs/navigation-1.1/tabsets.js"></script>
+<link href="site_libs/highlightjs-1.1/textmate.css" rel="stylesheet" />
+<script src="site_libs/highlightjs-1.1/highlight.js"></script>
+<link href="site_libs/font-awesome-4.5.0/css/font-awesome.min.css" rel="stylesheet" />
+
+<style type="text/css">code{white-space: pre;}</style>
+<style type="text/css">
+  pre:not([class]) {
+    background-color: white;
+  }
+</style>
+<script type="text/javascript">
+if (window.hljs && document.readyState && document.readyState === "complete") {
+   window.setTimeout(function() {
+      hljs.initHighlighting();
+   }, 0);
+}
+</script>
+
+
+
+<style type="text/css">
+h1 {
+  font-size: 34px;
+}
+h1.title {
+  font-size: 38px;
+}
+h2 {
+  font-size: 30px;
+}
+h3 {
+  font-size: 24px;
+}
+h4 {
+  font-size: 18px;
+}
+h5 {
+  font-size: 16px;
+}
+h6 {
+  font-size: 12px;
+}
+.table th:not([align]) {
+  text-align: left;
+}
+</style>
+
+
+</head>
+
+<body>
+
+<style type = "text/css">
+.main-container {
+  max-width: 940px;
+  margin-left: auto;
+  margin-right: auto;
+}
+code {
+  color: inherit;
+  background-color: rgba(0, 0, 0, 0.04);
+}
+img {
+  max-width:100%;
+  height: auto;
+}
+.tabbed-pane {
+  padding-top: 12px;
+}
+button.code-folding-btn:focus {
+  outline: none;
+}
+</style>
+
+
+<style type="text/css">
+/* padding for bootstrap navbar */
+body {
+  padding-top: 51px;
+  padding-bottom: 40px;
+}
+/* offset scroll position for anchor links (for fixed navbar)  */
+.section h1 {
+  padding-top: 56px;
+  margin-top: -56px;
+}
+
+.section h2 {
+  padding-top: 56px;
+  margin-top: -56px;
+}
+.section h3 {
+  padding-top: 56px;
+  margin-top: -56px;
+}
+.section h4 {
+  padding-top: 56px;
+  margin-top: -56px;
+}
+.section h5 {
+  padding-top: 56px;
+  margin-top: -56px;
+}
+.section h6 {
+  padding-top: 56px;
+  margin-top: -56px;
+}
+</style>
+
+<script>
+// manage active state of menu based on current page
+$(document).ready(function () {
+  // active menu anchor
+  href = window.location.pathname
+  href = href.substr(href.lastIndexOf('/') + 1)
+  if (href === "")
+    href = "index.html";
+  var menuAnchor = $('a[href="' + href + '"]');
+
+  // mark it active
+  menuAnchor.parent().addClass('active');
+
+  // if it's got a parent navbar menu mark it active as well
+  menuAnchor.closest('li.dropdown').addClass('active');
+});
+</script>
+
+
+<div class="container-fluid main-container">
+
+<!-- tabsets -->
+<script>
+$(document).ready(function () {
+  window.buildTabsets("TOC");
+});
+</script>
+
+<!-- code folding -->
+
+
+
+
+<script>
+$(document).ready(function ()  {
+
+    // move toc-ignore selectors from section div to header
+    $('div.section.toc-ignore')
+        .removeClass('toc-ignore')
+        .children('h1,h2,h3,h4,h5').addClass('toc-ignore');
+
+    // establish options
+    var options = {
+      selectors: "h1,h2,h3",
+      theme: "bootstrap3",
+      context: '.toc-content',
+      hashGenerator: function (text) {
+        return text.replace(/[.\\/?&!#<>]/g, '').replace(/\s/g, '_').toLowerCase();
+      },
+      ignoreSelector: ".toc-ignore",
+      scrollTo: 0
+    };
+    options.showAndHide = true;
+    options.smoothScroll = true;
+
+    // tocify
+    var toc = $("#TOC").tocify(options).data("toc-tocify");
+});
+</script>
+
+<style type="text/css">
+
+#TOC {
+  margin: 25px 0px 20px 0px;
+}
+@media (max-width: 768px) {
+#TOC {
+  position: relative;
+  width: 100%;
+}
+}
+
+
+.toc-content {
+  padding-left: 30px;
+  padding-right: 40px;
+}
+
+div.main-container {
+  max-width: 1200px;
+}
+
+div.tocify {
+  width: 20%;
+  max-width: 260px;
+  max-height: 85%;
+}
+
+@media (min-width: 768px) and (max-width: 991px) {
+  div.tocify {
+    width: 25%;
+  }
+}
+
+@media (max-width: 767px) {
+  div.tocify {
+    width: 100%;
+    max-width: none;
+  }
+}
+
+.tocify ul, .tocify li {
+  line-height: 20px;
+}
+
+.tocify-subheader .tocify-item {
+  font-size: 0.90em;
+  padding-left: 25px;
+  text-indent: 0;
+}
+
+.tocify .list-group-item {
+  border-radius: 0px;
+}
+
+
+</style>
+
+<!-- setup 3col/9col grid for toc_float and main content  -->
+<div class="row-fluid">
+<div class="col-xs-12 col-sm-4 col-md-3">
+<div id="TOC" class="tocify">
+</div>
+</div>
+
+<div class="toc-content col-xs-12 col-sm-8 col-md-9">
+
+
+
+
+<div class="navbar navbar-default  navbar-fixed-top" role="navigation">
+  <div class="container">
+    <div class="navbar-header">
+      <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#navbar">
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+      </button>
+      <a class="navbar-brand" href="index.html">eqtl_estimation</a>
+    </div>
+    <div id="navbar" class="navbar-collapse collapse">
+      <ul class="nav navbar-nav">
+        <li>
+  <a href="index.html">Home</a>
+</li>
+<li>
+  <a href="about.html">About</a>
+</li>
+<li>
+  <a href="license.html">License</a>
+</li>
+      </ul>
+      <ul class="nav navbar-nav navbar-right">
+        <li>
+  <a href="https://github.com/jdblischak/workflowr">
+    <span class="fa fa-github"></span>
+     
+  </a>
+</li>
+      </ul>
+    </div><!--/.nav-collapse -->
+  </div><!--/.container -->
+</div><!--/.navbar -->
+
+<div class="fluid-row" id="header">
+
+
+
+<h1 class="title toc-ignore">Analysis of Chunk size</h1>
+<h4 class="author"><em>Knoblauch Nicholas</em></h4>
+<h4 class="date"><em>2017-03-24</em></h4>
+
+</div>
+
+
+<!-- The file analysis/chunks.R contains chunks that define default settings
+shared across the workflowr files. -->
+<!-- Update knitr chunk options -->
+<!-- Insert the date the file was last updated -->
+<!-- Insert the code version (Git commit SHA1) if Git repository exists and R
+ package git2r is installed -->
+<pre class="r"><code>library(dplyr)
+library(tidyr)
+library(ggplot2)</code></pre>
+<!-- Add your analysis here -->
+<div id="introduction" class="section level2">
+<h2>Introduction</h2>
+<p>One of the key assumptions of the RSS method is that sites that are not in linkage disequilibrium from one-another are independent from one-another. This means that the likelhihood (or variational lower bound) for unlinked sites can be computed in parallel. In the original implementation of RSS, this was done at a chromosome by chromosome level. The chromosme with the largest number of SNPs is chromosme 2, with 1,348,518 SNPs. This means a 1,348,518*1,348,518 covariance matrix must be first computed, and then operated on for each iteration of the RSS algorithm. My eQTL analysis requires the analysis of a large number of traits, so this isn’t feasible.</p>
+</div>
+<div id="chunking" class="section level2">
+<h2>Chunking</h2>
+<p>My strategy to tackle this problem and increase parallelization is to chunk the genome into 25K SNP chunks. With a 5% allele frequency cutoff, there are 250 such chunks in a typical analysis. Not only is the memory requirement much smaller for a 25K SNP chunk, but it also appears that convergence is reached more quickly as well.</p>
+</div>
+<div id="testing-the-effect-of-chunking" class="section level1">
+<h1>Testing the effect of chunking</h1>
+<p>For this analysis I will run RSS over a grid (9x11) of parameter values on eQTL data for a gene chosen from the high heritability genes identified by Wright et al. I will be using GTEx Whole Blood genotype and expression data. I will limit my analysis to chromosome 2. To test the effect of chunking, I will use a chunk size of 6250 SNPs as well as a chunk size of 12500 SNPs, compute the variatonal lower bound for each chunk for each of the grid values, sum over the chunks, and compare the resulting 9x11 grid of lower bound values.</p>
+<pre class="r"><code>chunk_6 &lt;- readRDS(&quot;../data/chunk_results/rss_6000.RDS&quot;)
+chunk_12 &lt;- readRDS(&quot;../data/chunk_results/rss_12500.RDS&quot;)
+
+
+summ_6 &lt;- group_by(chunk_6,logodds,sigb) %&gt;% summarise(sum_lnZ=sum(lnZ)) %&gt;% mutate(chunksize=6250) %&gt;% ungroup()
+summ_12 &lt;- group_by(chunk_12,logodds,sigb) %&gt;% summarise(sum_lnZ=sum(lnZ)) %&gt;% mutate(chunksize=12500) %&gt;% ungroup()
+
+
+
+# summ_b &lt;- rbind(summ_6,summ_12)
+
+summ_b &lt;- select(summ_6,-chunksize) %&gt;% inner_join(select(summ_12,-chunksize),by=c(&quot;logodds&quot;,&quot;sigb&quot;),suffix=c(&quot;_6250&quot;,&quot;_12500&quot;))
+summ_b &lt;- mutate(summ_b,pi=exp(logodds)/(exp(logodds)+1))
+# mutate(summ_b,chunkisze=paste0(&quot;chunksize_&quot;,chunksize)) %&gt;% spread(chunksize,sum_lnZ) %&gt;% head
+ggplot(summ_b,aes(x=sum_lnZ_6250,y=sum_lnZ_12500))+geom_point()+geom_abline()+ggtitle(&quot;Comparison of Chunk sizes at different hyperparameter values&quot;,subtitle = &quot;Chromosome 2&quot;)+xlab(&quot;lnZ \n6250 SNP Chunks&quot;)+ylab(&quot;lnZ \n 12500 SNP Chunks&quot;)</code></pre>
+<p><img src="figure/chunk_comparison.Rmd/unnamed-chunk-2-1.png" width="672" style="display: block; margin: auto;" /></p>
+<p>This plot shows that there is very little difference between the chromosome-wide lower bound estimates, and parameter estimates obtained by maximizing the lower bound is the same (<span class="math inline">\(\pi=6e-4\)</span>, $_{}=0.1)</p>
+<div id="code" class="section level3">
+<h3>Code</h3>
+<pre class="r"><code>library(RcppEigenH5)
+library(rssr)
+library(RSSReQTL)
+library(dplyr)
+
+snphf &lt;- &quot;/media/nwknoblauch/Data/GTEx/GTEx_rssr/wright_high_h2/SNP_Whole_Blood.h5&quot;
+exphf &lt;- &quot;/media/nwknoblauch/Data/GTEx/GTEx_rssr/wright_high_h2/EXP_Whole_Blood.h5&quot;
+a_groups &lt;- list_groups_h5(exphf)
+e_wb_ind &lt;- read_vec(exphf,&quot;/all/Whole_Blood&quot;)[1]
+e_wb_file &lt;- read_attr(exphf,&quot;all&quot;,&quot;Whole_Blood_filepath&quot;)
+
+a_groups &lt;- list_groups_h5(snphf)
+a_attr &lt;- list_attrs_h5(snphf,&quot;/1&quot;)
+a_chroms &lt;- sapply(a_groups,read_attr,h5filename=snphf,attrname=&quot;chromosome&quot;)
+a_1kg &lt;- sapply(a_groups,read_attr,h5filename=snphf,attrname=&quot;1kg_filepath&quot;)
+a_wb &lt;- sapply(a_groups,read_attr,h5filename=snphf,attrname=&quot;Whole_Blood_filepath&quot;)
+chunk_chrom_df &lt;- data_frame(chunk=a_groups,chromosome=a_chroms,kg_filepath=a_1kg,wb_filepath=a_wb)
+
+chrom_size &lt;- group_by(chunk_chrom_df,chromosome) %&gt;% summarise(nchunks=n()) %&gt;% arrange(desc(nchunks))
+t_chrom &lt;- filter(chunk_chrom_df,chromosome==2)
+
+chunk_snps &lt;- group_by(t_chrom,chunk) %&gt;%do(data_frame(kg_ind=read_vec(h5filename=snphf,datapath=paste0(.$chunk,&quot;/1kg&quot;)),
+                                                   wb_ind=read_vec(h5filename=snphf,datapath=paste0(.$chunk,&quot;/Whole_Blood&quot;)),
+                                                   chromosome=.$chromosome,kg_filepath=.$kg_filepath,wb_filepath=.$wb_filepath)) %&gt;%
+  ungroup()
+
+unchunk_snps &lt;- select(chunk_snps,-chunk)
+
+rechunk_snps &lt;- mutate(unchunk_snps,snp_ind=1:n(),
+                       chunk_25k=ntile(snp_ind,22),
+                       chunk_12k=ntile(snp_ind,44),
+                       chunk_6k=ntile(snp_ind,88))
+
+
+saveRDS(rechunk_snps,&quot;~/Dropbox/Columbo/analyses/Snakemake_scripts/rechunk_SNPs.RDS&quot;)</code></pre>
+<pre class="r"><code>rechunk_snps &lt;- readRDS(&quot;~/Dropbox/Columbo/analyses/Snakemake_scripts/rechunk_SNPs.RDS&quot;)
+n6k &lt;- length(unique(rechunk_snps$chunk_6k))
+c6kfilen &lt;- &quot;/media/nwknoblauch/Data/GTEx/GTEx_rssr/chunk_comparison/SNP_Whole_Blood_6000.h5&quot;
+file.remove(c6kfilen)
+
+#h5f &lt;- h5file(c6kfilen,mode=&quot;a&quot;)
+library(dplyr)
+my_rechunk_snps &lt;- rename(rechunk_snps,chunk=chunk_6k)
+nchunk &lt;- length(unique(my_rechunk_snps$chunk))
+chunk_l &lt;- split(my_rechunk_snps,my_rechunk_snps$chunk)
+write_chunk &lt;- function(chunknum,chunk_df,filename){
+#  cat(chunknum,&quot;\n&quot;)
+  write_ivec_h5(filename,groupname=as.character(chunknum),dataname=&quot;1kg&quot;,data=chunk_df$kg_ind,deflate_level=4)
+  write_ivec_h5(filename,groupname=as.character(chunknum),dataname=&quot;Whole_Blood&quot;,data=chunk_df$wb_ind,deflate_level=4)
+  write_group_string_attr_h5(filename,as.character(chunknum),&quot;1kg_filepath&quot;,chunk_df$kg_filepath[1])
+  write_group_string_attr_h5(filename,as.character(chunknum),&quot;Whole_Blood_filepath&quot;,chunk_df$wb_filepath[1])
+  write_group_int_attr_h5(filename,as.character(chunknum),&quot;chromosome&quot;,chunk_df$chromosome[1])
+    
+}
+
+
+mapply(write_chunk,chunknum=1:length(chunk_l),chunk_df=chunk_l,MoreArgs = list(filename=c6kfilen))
+
+c12kfilen &lt;- &quot;/media/nwknoblauch/Data/GTEx/GTEx_rssr/chunk_comparison/SNP_Whole_Blood_12500.h5&quot;
+chunk_l &lt;- split(my_rechunk_snps,my_rechunk_snps$chunk_12k)
+mapply(write_chunk,chunknum=1:length(chunk_l),chunk_df=chunk_l,MoreArgs = list(filename=c12kfilen))
+
+c25kfilen &lt;- &quot;/media/nwknoblauch/Data/GTEx/GTEx_rssr/chunk_comparison/SNP_Whole_Blood_25000.h5&quot;
+chunk_l &lt;- split(my_rechunk_snps,my_rechunk_snps$chunk_25k)
+mapply(write_chunk,chunknum=1:length(chunk_l),chunk_df=chunk_l,MoreArgs = list(filename=c25kfilen))</code></pre>
+<pre class="r"><code>dir_6 &lt;- dir(&quot;/media/nwknoblauch/Data/GTEx/GTEx_rssr/chunk_comparison/rss_6000/&quot;,full.names = T)
+dir_12 &lt;- dir(&quot;/media/nwknoblauch/Data/GTEx/GTEx_rssr/chunk_comparison/rss_12500/&quot;,full.names=T)
+
+chunk_12 &lt;- bind_rows(lapply(dir_12,readRDS))
+chunk_6 &lt;-bind_rows(lapply(dir_6,readRDS))
+
+saveRDS(chunk_12,&quot;../data/chunk_results/rss_12500.RDS&quot;)
+saveRDS(chunk_6,&quot;../data/chunk_results/rss_6000.RDS&quot;)</code></pre>
+</div>
+<div id="session-information" class="section level2">
+<h2>Session information</h2>
+<!-- Insert the session information into the document -->
+<pre class="r"><code>sessionInfo()</code></pre>
+<pre><code>R version 3.3.3 (2017-03-06)
+Platform: x86_64-pc-linux-gnu (64-bit)
+Running under: Ubuntu 16.04.2 LTS
+
+locale:
+ [1] LC_CTYPE=en_US.UTF-8       LC_NUMERIC=C              
+ [3] LC_TIME=en_US.UTF-8        LC_COLLATE=en_US.UTF-8    
+ [5] LC_MONETARY=en_US.UTF-8    LC_MESSAGES=en_US.UTF-8   
+ [7] LC_PAPER=en_US.UTF-8       LC_NAME=C                 
+ [9] LC_ADDRESS=C               LC_TELEPHONE=C            
+[11] LC_MEASUREMENT=en_US.UTF-8 LC_IDENTIFICATION=C       
+
+attached base packages:
+[1] stats     graphics  grDevices utils     datasets  methods   base     
+
+other attached packages:
+[1] rssr_0.1-0      lazyeval_0.2.0  h5_0.9.8        RColumbo_0.1.0 
+[5] workflowr_0.4.0 rmarkdown_1.3   ggplot2_2.2.1   tidyr_0.6.1    
+[9] dplyr_0.5.0    
+
+loaded via a namespace (and not attached):
+ [1] Rcpp_0.12.10        knitr_1.15.1        magrittr_1.5       
+ [4] munsell_0.4.3       colorspace_1.3-2    R6_2.2.0           
+ [7] stringr_1.2.0       plyr_1.8.4          tools_3.3.3        
+[10] grid_3.3.3          gtable_0.2.0        DBI_0.6            
+[13] git2r_0.18.0        htmltools_0.3.5     RcppParallel_4.3.20
+[16] yaml_2.1.14         assertthat_0.1      rprojroot_1.2      
+[19] digest_0.6.12       tibble_1.2          memoise_1.0.0      
+[22] RSQLite_1.1-2       evaluate_0.10       labeling_0.3       
+[25] stringi_1.1.2       scales_0.4.1        backports_1.0.5    </code></pre>
+</div>
+</div>
+
+<hr>
+<p>
+    This <a href="http://rmarkdown.rstudio.com">R Markdown</a> site was created with <a href="https://github.com/jdblischak/workflowr">workflowr</a>
+</p>
+<hr>
+
+<!-- To enable disqus, uncomment the section below and provide your disqus_shortname -->
+
+<!-- disqus
+  <div id="disqus_thread"></div>
+    <script type="text/javascript">
+        /* * * CONFIGURATION VARIABLES: EDIT BEFORE PASTING INTO YOUR WEBPAGE * * */
+        var disqus_shortname = 'rmarkdown'; // required: replace example with your forum shortname
+
+        /* * * DON'T EDIT BELOW THIS LINE * * */
+        (function() {
+            var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+            dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+            (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+        })();
+    </script>
+    <noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+    <a href="http://disqus.com" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>
+-->
+
+
+</div>
+</div>
+
+</div>
+
+<script>
+
+// add bootstrap table styles to pandoc tables
+function bootstrapStylePandocTables() {
+  $('tr.header').parent('thead').parent('table').addClass('table table-condensed');
+}
+$(document).ready(function () {
+  bootstrapStylePandocTables();
+});
+
+
+</script>
+
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+  (function () {
+    var script = document.createElement("script");
+    script.type = "text/javascript";
+    script.src  = "https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML";
+    document.getElementsByTagName("head")[0].appendChild(script);
+  })();
+</script>
+
+</body>
+</html>
