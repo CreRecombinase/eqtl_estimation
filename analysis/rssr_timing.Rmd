@@ -1,0 +1,89 @@
+---
+title: "Timing for RSSR"
+author: "Nicholas  Knoblauch"
+date: 2017-03-31
+output: html_document
+---
+
+<!-- The file analysis/chunks.R contains chunks that define default settings
+shared across the workflowr files. -->
+```{r read-chunk, include=FALSE, cache=FALSE}
+knitr::read_chunk("chunks.R")
+```
+
+<!-- Update knitr chunk options -->
+```{r knitr-opts-chunk, include=FALSE}
+```
+
+<!-- Insert the date the file was last updated -->
+```{r last-updated, echo=FALSE, results='asis'}
+```
+
+<!-- Insert the code version (Git commit SHA1) if Git repository exists and R
+ package git2r is installed -->
+```{r code-version, echo=FALSE, results='asis'}
+```
+
+<!-- Add your analysis here -->
+
+
+
+
+
+### Timing
+
+Each row is  a gene, and `pt` is the time in hours.
+
+
+```{r,echo=F,message=F}
+library(ggplot2)
+library(dplyr)
+
+timing_data <- readRDS("../data/chunk_results/timing_data_6250.RDS")
+
+peak_timing_data <- group_by(timing_data,snp_chunk,exp_chunk) %>% filter(lnZ==max(lnZ)) %>% slice(1) %>% ungroup()
+
+group_by(peak_timing_data,exp_chunk) %>% summarise(pt=as.numeric(sum(as.difftime(s,units="secs")),units = "hours"))
+
+```
+One gene genome-wide analysis took on average ~6 hours on one desktop machine.
+
+```{r,echo=F}
+mean(as.difftime(peak_timing_data$s,units="secs"))
+```
+
+Each chunk only takes ~23 seconds, with 968 chunks total (per gene), the total run time will depend heavily on the  available compute resources.
+
+```{r,echo=F,message=F}
+ggplot(peak_timing_data)+geom_histogram(aes(x=log10(s)),bins=300)+ggtitle("Timing for RSSR(seconds)","6250 SNP blocks")
+```
+
+
+
+
+
+```{r,eval=FALSE,echo=FALSE}
+timing_data_f <- dir("/media/nwknoblauch/Data/GTEx/GTEx_rssr/chunk_comparison/runtimes_6250/",full.names = T)
+rssr_res_data_f <- dir("/media/nwknoblauch/Data/GTEx/GTEx_rssr/chunk_comparison/rss_6250/",full.names=T)
+
+timing_data <- bind_rows(lapply(timing_data_f,read.table,header=T)) %>% 
+  mutate(snp_chunk=as.integer(gsub(".+lnz_([0-9]+)_[0-9]+_.+","\\1",timing_data_f)),
+         exp_chunk=as.integer(gsub(".+lnz_[0-9]+_([0-9]+)_.+","\\1",timing_data_f))) %>% select(-h.m.s)
+
+result_data <- bind_rows(lapply(rssr_res_data_f,readRDS))
+chrom_vec <- 1:22
+names(chrom_vec) <- unique(result_data[["snp_chromosome"]])
+result_data[["snp_chromosome"]] <- chrom_vec[result_data[["snp_chromosome"]]]
+result_data <- inner_join(timing_data,result_data)
+
+saveRDS(result_data,"../data/chunk_results/timing_data_6250.RDS")
+```
+
+
+
+
+## Session information
+
+<!-- Insert the session information into the document -->
+```{r session-info}
+```
