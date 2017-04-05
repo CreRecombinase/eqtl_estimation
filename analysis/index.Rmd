@@ -5,7 +5,6 @@ output:
     toc: false
 ---
 
-The goal of this new template is to simplify the setup and maintenance of a research website.
-Specifically,
+eQTL parameter estimation by RSS
 
-Click on this [link](initial_grid_search.html) to see my results.
+Click on this [link](results.html) to see my results.
