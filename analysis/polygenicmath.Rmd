@@ -1,0 +1,45 @@
+---
+title: "Deriving Polygenic Approximation"
+author: "Knoblauch Nicholas"
+date: 2017-07-12
+output: html_document
+---
+
+<!-- The file analysis/chunks.R contains chunks that define default settings
+shared across the workflowr files. -->
+```{r read-chunk, include=FALSE, cache=FALSE}
+knitr::read_chunk("chunks.R")
+```
+
+<!-- Update knitr chunk options -->
+```{r knitr-opts-chunk, include=FALSE}
+```
+
+<!-- Insert the date the file was last updated -->
+```{r last-updated, echo=FALSE, results='asis'}
+```
+
+<!-- Insert the code version (Git commit SHA1) if Git repository exists and R
+ package git2r is installed -->
+```{r code-version, echo=FALSE, results='asis'}
+```
+
+<!-- Add your analysis here -->
+
+
+# Background
+
+##General properties of compound normal
+
+If $$x|\mu \sim N(A\mu,\Sigma)$$ and $$\mu \sim N(\rho,\Lambda)$$ then the marginalized form of $x$ is $$x \sim N(A\rho,A \Lambda A^{T} + \Sigma)$$
+
+## RSS polygenic prior on $\beta$
+
+According to the RSS likelihood:
+
+$$\hat{\beta}|\beta \sim N(SRS^{-1}\beta,SRS)$$ Where $R$ is the population LD matrix, and $S$ is a diagonal matrix with entires $S_{jj}=\frac{1}{\text{se}(\hat{\beta}_j)}$  This means that if $\beta \sim N(0,I\sigma_{\beta})$ , then we can obtain the the marginalized form of $\hat{\beta}$ by substituting $$A=SRS^{-1}$$ $$\rho=0$$ $$\Lambda=I\sigma_\beta$$  and $$\Sigma=SRS$$
+
+
+
+$$\hat{\beta} \sim N(0,(SRS^{-1})I\sigma_\beta(SRS^{-1})^{T}+SRS)=N(0,\sigma_\beta SRS^{-2}RS+SRS)$$
+
