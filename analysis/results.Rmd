@@ -3,11 +3,19 @@ title: Results
 output: html_document
 ---
 
-
+* [RSS with a Normal Prior](polygenicmath.html)
 * [Analysis of Chunk size](chunk_comparison.html)
 * [Estimating Cis heritability using varbvsr](cis_parameter_estimation.html)
+* [Untitled](ind_simulation_chunksize.html)
+* [Individual Level Simulations](ind_simulation.html)
 * [Results of first grid search](initial_grid_search.html)
 * [Comparing LD panels](LD_comparison.html)
 * [Results of Second grid search](parameter_estimation2.html)
+* [Heritability Estimation with RSS](polygenic.html)
+* [Deriving Polygenic Approximation](polygenicmath.html)
+* [Estimating alpha](rss_alpha.html)
 * [Timing for RSSR](rssr_timing.html)
+* [RSS Simulations](simulation.html)
+* [R Notebook](tdgn.html)
+* [Threading Benchmark](thread_performance.html)
 * [Comparison of Wright et al. with varbvsr](wright_comparison.html)
