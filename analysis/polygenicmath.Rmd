@@ -127,7 +127,7 @@ saveRDS(m_df,file="../output/m_norm.RDS")
 ```
 
 ## Results
-```{r,echo=F, plot1}
+```{r,echo=F,message=F, plot1}
 b_df<- readRDS("../output/norm_norm.RDS")
 m_df <- readRDS("../output/m_norm.RDS")
 library(tidyr)
@@ -138,12 +138,12 @@ ggplot(best_est,aes(x=tsigb,y=max,col=method))+geom_point()+ggtitle("Estimating 
 
 
 Both methods seem to give pretty similar results.  Which one has a lower relative error (defined as $\frac{|x-y|}{|x|+|y|}$)?
-```{r ,echo=F,plot2}
+```{r ,echo=F,message=F,plot2}
 mutate(best_est,rel_error=abs(max-tsigb)/(abs(max)+abs(tsigb))) %>% ggplot(aes(x=tsigb,y=rel_error,col=method))+geom_point()+ggtitle("Relative Error Estimating sigma_beta","Variational Inference vs Analytical Form")+xlab("True Sigma_beta")+ylab("Relative Error")+geom_smooth()
 ```
 
 Which one ran faster?
-```{r,echo=F, plot3}
+```{r,echo=F,message=F, plot3}
 nlabs <- c("Analytical","Variational")
 names(nlabs) <- c("af","vi")
 m_time <- select(m_df,time_af,time_vi) %>% gather(method,time) %>% mutate(method=nlabs[gsub("time_(.+)","\\1",method)])
