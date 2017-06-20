@@ -49,6 +49,7 @@ I've simulated data under 10 different values of $\sigma_{\beta}^2$, and will tr
 ```{r,echo=F,message=F, dataload}
 library(rssr)
 library(ggplot2)
+library(tidyr)
 data("betahat_mat_norm")
 data("R_panel")
 data("se_mat_norm")
@@ -130,7 +131,7 @@ saveRDS(m_df,file="../output/m_norm.RDS")
 ```{r,echo=F,message=F, plot1}
 b_df<- readRDS("../output/norm_norm.RDS")
 m_df <- readRDS("../output/m_norm.RDS")
-library(tidyr)
+
 best_est <- select(m_df,-tsigb,-tpi,-replicate,-tlogodds,-tpve,-time_af,-time_vi) %>% gather(method,max,-fgeneid) %>% mutate(method=ifelse(method=="max_af","Analytical","Variational")) %>% inner_join(tparam_df_norm) %>% select(fgeneid,method,max,tsigb)
 
 ggplot(best_est,aes(x=tsigb,y=max,col=method))+geom_point()+ggtitle("Estimating sigma_beta","Variational Inference vs Analytical Form")+xlab("True Sigma_beta")+ylab("Estimate")+geom_smooth()
@@ -142,7 +143,8 @@ Both methods seem to give pretty similar results.  Which one has a lower relativ
 mutate(best_est,rel_error=abs(max-tsigb)/(abs(max)+abs(tsigb))) %>% ggplot(aes(x=tsigb,y=rel_error,col=method))+geom_point()+ggtitle("Relative Error Estimating sigma_beta","Variational Inference vs Analytical Form")+xlab("True Sigma_beta")+ylab("Relative Error")+geom_smooth()
 ```
 
-Which one ran faster?
+## Performance
+Surprisingly, the variational inference method is several times faster.  This is likely because the variational method doesn't have to compute the determinant of the covariance matrix, which is an $O(n^3)$ operation (at best)
 ```{r,echo=F,message=F, plot3}
 nlabs <- c("Analytical","Variational")
 names(nlabs) <- c("af","vi")
@@ -150,6 +152,8 @@ m_time <- select(m_df,time_af,time_vi) %>% gather(method,time) %>% mutate(method
 ggplot(m_time,aes(x=method,y=log10(time)))+geom_boxplot()+ggtitle("Time to perform inference","100 grid values,982 SNPs")+ylab("log10(seconds)")
 ```
 
+## Directly Comparing the lower-bound to the log-likelihood
+  Finally, This is a comparison of the normalized log-likelihood to the normalized variational lower-bound. Normalization in this context means exponentiating the log lower-bound values (or log-likelihoods), and dividing by the sum of these exponentiated values (using the log-sum-exp trick).
 
 ```{r,echo=F, plotnormvb}
 group_by(b_df,fgeneid) %>% mutate(w_af=normalizeLogWeights(lnZ_af),w_vi=normalizeLogWeights(lnZ_vi)) %>% ungroup()  %>%
