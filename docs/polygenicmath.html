@@ -336,7 +336,14 @@ shared across the workflowr files. -->
 <h2>Results</h2>
 <p><img src="figure/polygenicmath.Rmd/plot1-1.png" width="672" style="display: block; margin: auto;" /></p>
 <p>Both methods seem to give pretty similar results. Which one has a lower relative error (defined as <span class="math inline">\(\frac{|x-y|}{|x|+|y|}\)</span>)? <img src="figure/polygenicmath.Rmd/plot2-1.png" width="672" style="display: block; margin: auto;" /></p>
-<p>Which one ran faster? <img src="figure/polygenicmath.Rmd/plot3-1.png" width="672" style="display: block; margin: auto;" /></p>
+</div>
+<div id="performance" class="section level2">
+<h2>Performance</h2>
+<p>Surprisingly, the variational inference method is several times faster. This is likely because the variational method doesn’t have to compute the determinant of the covariance matrix, which is an <span class="math inline">\(O(n^3)\)</span> operation (at best) <img src="figure/polygenicmath.Rmd/plot3-1.png" width="672" style="display: block; margin: auto;" /></p>
+</div>
+<div id="directly-comparing-the-lower-bound-to-the-log-likelihood" class="section level2">
+<h2>Directly Comparing the lower-bound to the log-likelihood</h2>
+<p>Finally, This is a comparison of the normalized log-likelihood to the normalized variational lower-bound. Normalization in this context means exponentiating the log lower-bound values (or log-likelihoods), and dividing by the sum of these exponentiated values (using the log-sum-exp trick).</p>
 <p><img src="figure/polygenicmath.Rmd/plotnormvb-1.png" width="672" style="display: block; margin: auto;" /></p>
 </div>
 </div>
