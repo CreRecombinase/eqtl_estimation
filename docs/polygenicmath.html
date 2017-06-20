@@ -325,8 +325,28 @@ shared across the workflowr files. -->
 <div id="rss-polygenic-prior-on-beta" class="section level2">
 <h2>RSS polygenic prior on <span class="math inline">\(\beta\)</span></h2>
 <p>According to the RSS likelihood:</p>
-<p><span class="math display">\[\hat{\beta}|\beta \sim N(SRS^{-1}\beta,SRS)\]</span> Where <span class="math inline">\(R\)</span> is the population LD matrix, and <span class="math inline">\(S\)</span> is a diagonal matrix with entires <span class="math inline">\(S_{jj}=\frac{1}{\text{se}(\hat{\beta}_j)}\)</span> This means that if <span class="math inline">\(\beta \sim N(0,I\sigma_{\beta})\)</span> , then we can obtain the the marginalized form of <span class="math inline">\(\hat{\beta}\)</span> by substituting <span class="math display">\[A=SRS^{-1}\]</span> <span class="math display">\[\rho=0\]</span> <span class="math display">\[\Lambda=I\sigma_\beta\]</span> and <span class="math display">\[\Sigma=SRS\]</span></p>
-<p><span class="math display">\[\hat{\beta} \sim N(0,(SRS^{-1})I\sigma_\beta(SRS^{-1})^{T}+SRS)=N(0,\sigma_\beta SRS^{-2}RS+SRS)\]</span></p>
+<p><span class="math display">\[\hat{\beta}|\beta \sim N(SRS^{-1}\beta,SRS)\]</span> Where <span class="math inline">\(R\)</span> is the population LD matrix, and <span class="math inline">\(S\)</span> is a diagonal matrix with entires <span class="math inline">\(S_{jj}=\frac{1}{\text{se}(\hat{\beta}_j)}\)</span> This means that if <span class="math inline">\(\beta \sim N(0,I\sigma_{\beta}^2)\)</span> , then we can obtain the the marginalized form of <span class="math inline">\(\hat{\beta}\)</span> by substituting <span class="math display">\[A=SRS^{-1}\]</span> <span class="math display">\[\rho=0\]</span> <span class="math display">\[\Lambda=I\sigma_{\beta}^2\]</span> and <span class="math display">\[\Sigma=SRS\]</span></p>
+<p><span class="math display">\[\hat{\beta} \sim N(0,(SRS^{-1})I\sigma_{\beta}^2(SRS^{-1})^{T}+SRS)=N(0,\sigma_{\beta}^2 SRS^{-2}RS+SRS)\]</span></p>
+</div>
+<div id="estimating-sigma_beta2" class="section level2">
+<h2>Estimating <span class="math inline">\(\sigma_{\beta}^2\)</span></h2>
+<p>I’ve simulated data under 10 different values of <span class="math inline">\(\sigma_{\beta}^2\)</span>, and will try to estimate these parameters using a grid search in a modified version of <code>RSS</code>, and a grid search using a multivariate normal distribution.</p>
+</div>
+<div id="results" class="section level2">
+<h2>Results</h2>
+<pre><code>
+Attaching package: &#39;tidyr&#39;</code></pre>
+<pre><code>The following object is masked from &#39;package:Matrix&#39;:
+
+    expand</code></pre>
+<pre><code>Joining, by = &quot;fgeneid&quot;</code></pre>
+<pre><code>`geom_smooth()` using method = &#39;loess&#39;</code></pre>
+<p><img src="figure/polygenicmath.Rmd/plot1-1.png" width="672" style="display: block; margin: auto;" /></p>
+<p>Both methods seem to give pretty similar results. Which one has a lower relative error (defined as <span class="math inline">\(\frac{|x-y|}{|x|+|y|}\)</span>)?</p>
+<pre><code>`geom_smooth()` using method = &#39;loess&#39;</code></pre>
+<p><img src="figure/polygenicmath.Rmd/plot2-1.png" width="672" style="display: block; margin: auto;" /></p>
+<p>Which one ran faster? <img src="figure/polygenicmath.Rmd/plot3-1.png" width="672" style="display: block; margin: auto;" /></p>
+<p><img src="figure/polygenicmath.Rmd/plotnormvb-1.png" width="672" style="display: block; margin: auto;" /></p>
 </div>
 </div>
 
