@@ -43,120 +43,358 @@ $$\hat{\beta}|\beta \sim N(SRS^{-1}\beta,SRS)$$ Where $R$ is the population LD m
 
 $$\hat{\beta} \sim N(0,(SRS^{-1})I\sigma_{\beta}^2(SRS^{-1})^{T}+SRS)=N(0,\sigma_{\beta}^2 SRS^{-2}RS+SRS)$$
 
-## Estimating $\sigma_{\beta}^2$
+## RSS with standardized effect size and polygenic prior
 
-I've simulated data under 10 different values of $\sigma_{\beta}^2$, and will try to estimate these parameters using a grid search in a modified version of `RSS`, and a grid search using a multivariate normal distribution.
-```{r,echo=F,message=F, dataload}
+If we define $\hat{u_i}=\hat{\beta_i}/s_i$ ,the likelihood becomes
+
+$$\hat{u}|u \sim N(Ru,R)$$
+
+The marginalized form is 
+
+$$\hat{u} \sim N(0,\sigma^2_uR^2+R)$$
+Let $V(\sigma_u) = \sigma_u^2R^2+R=\sigma^2_u(R+\frac{1}{\sigma^2_u}I)R$
+
+Using an eigen decomposition of $R$ ($R=QDQ^T$), we arrive at the log-likelihood function:
+
+$$l(\sigma_u)=-\frac{1}{2}\left[\sum_i \log(d_i\sigma_u^2+1) + \hat{u}^TR^{-1}Q \text{diag}(\frac{1}{d_i\sigma_u^2+1})Q^T\hat{u}\right]$$
+
+
+## Estimating $\sigma_{u}^2$
+
+I'll use Xiang's `example2`, genotype data to simulate $\hat{u}$, then try to estimate $\sigma_u$.  As a control, I'll use the naive multivariate normal density as well as the decomposed form to try to estimate $\sigma_u$
+
+```{r,echo=F,message=F,warning=F,loadSNP}
 library(rssr)
+library(RSSReQTL)
 library(ggplot2)
 library(tidyr)
-data("betahat_mat_norm")
-data("R_panel")
-data("se_mat_norm")
-data("tparam_df_norm")
-
+library(R.matlab)
 library(dplyr)
-R_paneld <- as.matrix(R_panel)
-R <- as.matrix(R_paneld)
-sigb_range <- c(min(tparam_df_norm$tsigb),max(tparam_df_norm$tsigb))
-paramdf <- data.frame(sigb=seq(sigb_range[1]/2,sigb_range[2]*2,length.out = 100))
-ng <- ncol(betahat_mat_norm)
-p <- nrow(R_panel)
-alphap=rep(1,p)
-mup <- rmu(p)
-
-tresl_vi <- list()
-tresl_af <- list()
+library(RcppEigenH5)
+library(progress)
+genof <- "/home/nwknoblauch/Dropbox/eqtl_estimation/data/RSS_examples/genotype2.mat"
+SNP  <- scale(t(read_2d_mat_h5(genof,"/","C")),center=T,scale=F)
+R <- read_2d_mat_h5(genof,"/","shrink_R")
 ```
 
-```{r echo=F,message=F, norm_function}
-aform_rss <- function(se,R,betahat,sigb_grid,progress=F){
-  library(progress)
-  library(dplyr)
-  S <- diag(se)
-  Si <- diag(1/se)
-  SRSi <- S%*%R%*%Si
-  SRSis <- SRSi%*%t(SRSi)
-  SRS <- S%*%R%*%S
+
+```{r simdat,echo=F,message=F,eval=F}
+pve.seq_norm <- as.numeric(seq(0.3,0.9,length.out = 6))
+sigb.seq_norm <- as.numeric(seq(0.3,0.9,length.out = 6))
+pi.seq_norm <- 1
+n <- nrow(SNP)
+p <- ncol(SNP)
+# saveRDS(SNP,"../data/sim_SNP_2000.RDS")
+
+
+
+nreps <- 5
+fparams_norm <- list(tpve=pve.seq_norm,tsigb=sigb.seq_norm,tpi=pi.seq_norm) %>% purrr::cross_d() %>% distinct()
+
+tparam_df_norm <- bind_rows(replicate(nreps,fparams_norm,simplify = F)) %>%
+  group_by(tpve,tsigb,tpi) %>%
+  mutate(replicate=1:n()) %>%
+  ungroup() %>%
+  mutate(fgeneid=1:n(),tlogodds=Inf)
+
+
+betamat_norm <- sim_betamat(tparam_df_norm,p)
+residvec_norm <- calc_residvec(tparam_df_norm,SNP,betamat_norm)
+residmat_norm <- sim_residmat(n=n,residvec = residvec_norm)
+
+
+saveRDS(betamat_norm,"../data/betamat_norm.RDS")
+saveRDS(residvec_norm,"../data/residvec_norm.RDS")
+saveRDS(residmat_norm,"../data/residmat_norm.RDS")
+
+
+
+ymat <- scale(SNP%*%betamat_norm+residmat_norm,center=T,scale=F)
+
+saveRDS(ymat,"../data/ymat_norm.RDS")
+
+betahat_mat_norm <- map_beta_exp(SNP,ymat)
+se_mat_norm <- map_se_exp(SNP,ymat,betahat_mat_norm)
+
+u_mat_norm <- betamat_norm/se_mat_norm
+tsu <- apply(u_mat_norm,2,sd)
+tparam_df_norm <- mutate(tparam_df_norm,tsigu=tsu)
+saveRDS(tparam_df_norm,"../data/tparam_df_norm.RDS")
+
+saveRDS(betahat_mat_norm,"../data/betahat_mat_norm.RDS")
+saveRDS(se_mat_norm,"../data/se_mat_norm.RDS")
+
+```
+
+
+```{r loadDat}
+
+betamat_norm <- readRDS("../data/betamat_norm.RDS")
+tparam_df_norm <- readRDS("../data/tparam_df_norm.RDS")
+betahat_mat_norm <- readRDS("../data/betahat_mat_norm.RDS")
+se_mat_norm <- readRDS("../data/se_mat_norm.RDS")
+
+
+```
+
+
+```{Rcpp}
+#include <RcppEigen.h>
+// [[Rcpp::depends(RcppEigen)]]
+using namespace Rcpp;
+typedef Eigen::Map<Eigen::ArrayXd> mapa;
+typedef Eigen::Map<Eigen::MatrixXd> mapmat;
+
+//[[Rcpp::export]]
+double norm_flfun_cpp(const double sigu,const Eigen::VectorXd dvec, const mapmat riv, const mapmat quh){
+  double varu=sigu*sigu;
+  double tsum = ((dvec.array()*varu+1).log()).sum();
+  double tprod = (riv*(1/(dvec.array()*varu+1)).matrix().asDiagonal()*quh).coeff(0,0);
+  //  uh.matrix().transpose()*rinv*Q;
+//  Rcpp::Rcout<<"tprod: "<<tprod<<std::endl;
+  return -(-0.5*(tsum+tprod));
+}
+```
+
+
+
+
+```{r normFunc}
+
+
+rssr_norm <- function(R,betahat,se,sigu_bounds,gridsize=NULL){
+  
+  u <- betahat/se
+  nse <- rep(1,length(u))
   p <- length(betahat)
-  dvec <- numeric(length(sigb_grid))
+  siris <- SiRSi_d(R,1/nse)
+  mres  <- rss_varbvsr_norm_optim(siris,sigu_bounds,u,nse)
+  return(data_frame(sigu=mres$minimum,lnZ=mres$objective))
+}
 
-  for( i in 1:length(sigb_grid)){
-    dvec[i] <- mvtnorm::dmvnorm(x=c(betahat),mean = rep(0,p),sigma = sigb_grid[i]*SRSis+SRS,log = T)
- 
+evdi <- function(revd){
+  return(revd$vectors%*%diag(1/revd$values)%*%t(revd$vectors))
+}
+
+evd_norm <- function(R,betahat,se,sigu_bounds,gridsize=NULL){
+  revd <- eigen(R)
+  rd <- revd$values
+  Q <- revd$vectors
+  uh <- betahat/se
+  rinv <- evdi(revd)
+  riv <- t(uh)%*%rinv%*%Q
+  quh <- t(Q)%*%uh
+  if(!is.null(gridsize)){
+    sigu_seq <- seq(sigu_bounds[1],sigu_bounds[2],length.out = gridsize)
+    return(data_frame(sigu=sigu_seq,lnZ=sapply(X = sigu_seq,FUN = norm_flfun_cpp,dvec=rd,riv=riv,quh=quh)))
+    
+  }else{
+  ldat  <- optimise(norm_flfun_cpp,
+                    interval=sigu_bounds,
+                    dvec=rd,riv=riv,quh=quh)
+  
+  
+  return(data_frame(sigu=ldat$minimum,lnZ=ldat$objective))
   }
-  return(data_frame(lnZ=dvec,sigb=sigb_grid))
+}
+
+af_dmvnorm <- function(sigu,uh,R){
+  return(-mvtnorm::dmvnorm(x = uh,mean = rep(0,length(uh)),sigma = sigu^2*R%*%R+R,log = T))
+}
+af_rssr_norm <- function(R,betahat,se,sigu_bounds){
+  uh <- betahat/se
   
+  reto <- optimise(af_dmvnorm,interval=sigu_bounds,uh=uh,R=R)
+  return(data_frame(sigu=reto$minimum,lnZ=reto$objective))
 }
 ```
 
-```{r,echo=F,eval=F, noeval}
 
-progress <- T
-if(progress){
-  pb<- progress_bar$new(total=ng)
-}
 
-tresl_vi <- list()
+
+
+```{r optim_af,echo=F,eval=F}
+
+sigu_bounds <- c(min(tparam_df_norm$tsigu)/2,max(tparam_df_norm$tsigu)*2)
+ng <- ncol(betahat_mat_norm)
+tresl_xf <- list()
 tresl_af <- list()
+pb <- progress_bar$new(total=ng)
+i <- 1
 for(i in 1:ng){
-  siris <- SiRSi_d(R_paneld,Si = 1/se_mat_norm[,i])
-  sirisr <- c(siris%*%(alphap*mup))
   
-  tr <- system.time(tresl_vi[[i]] <- grid_search_rss_varbvsr_norm(SiRiS = siris,
-                                                sigma_beta = paramdf$sigb,
-                                                betahat = betahat_mat_norm[,i],
-                                                se = se_mat_norm[,i],talpha0 = alphap,
-                                                tmu0 = mup,tSiRiSr0 = sirisr,tolerance = 1e-3,
-                                                itermax = 200,verbose = F,lnz_tol = T)  %>% mutate(fgeneid=i))
-  tresl_vi[[i]] <- mutate(tresl_vi[[i]],timeres=tr[3])
-  tr <- system.time(tresl_af[[i]] <- aform_rss(se = se_mat_norm[,i],R = R,betahat = betahat_mat_norm[,i],sigb_grid = paramdf$sigb,progress=F) %>% mutate(fgeneid=i))
-  tresl_af[[i]] <- mutate(tresl_af[[i]],time=tr[3])
-  if(progress){
-  pb$tick()
-}
+  betahat <- betahat_mat_norm[,i]
+  se <- se_mat_norm[,i]
+  xrsst <- system.time(xrss <- evd_norm(R,betahat = betahat,
+                  se=se,
+                  sigu_bounds = sigu_bounds))[3]
+  tresl_xf[[i]] <-mutate(xrss,fgeneid=i,time=xrsst)
+  aft <- system.time(arss <- af_rssr_norm(R,betahat=betahat,se=se,sigu_bounds = sigu_bounds))[3]
+  tresl_af[[i]] <- mutate(arss,fgeneid=i,time=aft)
+ pb$tick()
 }
 
+```
 
-af_df <- bind_rows(tresl_af)
-vi_df <- bind_rows(tresl_vi) %>% select(sigb,lnZ,fgeneid,time=timeres)
-b_df <- inner_join(af_df,vi_df,by=c("sigb","fgeneid"),suffix=c("_af","_vi")) %>% inner_join(tparam_df_norm)
-saveRDS(b_df,file = "../output/norm_norm.RDS")
-m_df <- group_by(b_df,fgeneid) %>% summarise(max_af=sigb[which.max(lnZ_af)],max_vi=sigb[which.max(lnZ_vi)],time_af=time_af[1],time_vi=time_vi[1]) %>% ungroup() %>% inner_join(tparam_df_norm)
-saveRDS(m_df,file="../output/m_norm.RDS")
+```{r save_optim_af,echo=F,eval=F}
+saveRDS(tresl_xf,"~/Dropbox/eqtl_estimation/output/tresl_xf.RDS")
+saveRDS(tresl_af,"~/Dropbox/eqtl_estimation/output/tresl_af.RDS")
+saveRDS(xf_df,"~/Dropbox/eqtl_estimation/output/xf_df.RDS")
 
 ```
 
-## Results
-```{r,echo=F,message=F, plot1}
-b_df<- readRDS("../output/norm_norm.RDS")
-m_df <- readRDS("../output/m_norm.RDS")
-
-best_est <- select(m_df,-tsigb,-tpi,-replicate,-tlogodds,-tpve,-time_af,-time_vi) %>% gather(method,max,-fgeneid) %>% mutate(method=ifelse(method=="max_af","Analytical","Variational")) %>% inner_join(tparam_df_norm) %>% select(fgeneid,method,max,tsigb)
-
-ggplot(best_est,aes(x=tsigb,y=max,col=method))+geom_point()+ggtitle("Estimating sigma_beta","Variational Inference vs Analytical Form")+xlab("True Sigma_beta")+ylab("Estimate")+geom_smooth()
+```{r load_optim_af,echo=F}
+tresl_xf <- readRDS("~/Dropbox/eqtl_estimation/output/tresl_xf.RDS")
+tresl_af <- readRDS("~/Dropbox/eqtl_estimation/output/tresl_af.RDS")
+xf_df <- readRDS("~/Dropbox/eqtl_estimation/output/xf_df.RDS")
 ```
 
 
-Both methods seem to give pretty similar results.  Which one has a lower relative error (defined as $\frac{|x-y|}{|x|+|y|}$)?
-```{r ,echo=F,message=F,plot2}
-mutate(best_est,rel_error=abs(max-tsigb)/(abs(max)+abs(tsigb))) %>% ggplot(aes(x=tsigb,y=rel_error,col=method))+geom_point()+ggtitle("Relative Error Estimating sigma_beta","Variational Inference vs Analytical Form")+xlab("True Sigma_beta")+ylab("Relative Error")+geom_smooth()
+
+```{r,plot_optim_af}
+
+xf_df <- bind_rows(tresl_xf) %>% mutate(method="EVD")
+bf_df <- rbind(xf_df,bind_rows(tresl_af) %>% mutate(method="MVN")) %>% inner_join(tparam_df_norm)
+
+ggplot(bf_df,aes(x=tsigu,y=sigu,col=method))+geom_point()+geom_abline(intercept=0,slope=1)+ggtitle("Estimate of sigma_u vs true value of sigma_u")+facet_wrap(~method)
 ```
 
-## Performance
-Surprisingly, the variational inference method is several times faster.  This is likely because the variational method doesn't have to compute the determinant of the covariance matrix, which is an $O(n^3)$ operation (at best)
-```{r,echo=F,message=F, plot3}
-nlabs <- c("Analytical","Variational")
-names(nlabs) <- c("af","vi")
-m_time <- select(m_df,time_af,time_vi) %>% gather(method,time) %>% mutate(method=nlabs[gsub("time_(.+)","\\1",method)])
-ggplot(m_time,aes(x=method,y=log10(time)))+geom_boxplot()+ggtitle("Time to perform inference","100 grid values,982 SNPs")+ylab("log10(seconds)")
+
+##Speedup from EVD
+```{r,plot_optim_af_speed}
+ggplot(bf_df,aes(x=method,y=time))+geom_boxplot()+ggtitle("Runtime of optimization")+ylab("seconds")+ylim(0,3)
 ```
 
-## Directly Comparing the lower-bound to the log-likelihood
-  Finally, This is a comparison of the normalized log-likelihood to the normalized variational lower-bound. Normalization in this context means exponentiating the log lower-bound values (or log-likelihoods), and dividing by the sum of these exponentiated values (using the log-sum-exp trick).
+## Comparison with variational inference
 
-```{r,echo=F, plotnormvb}
-group_by(b_df,fgeneid) %>% mutate(w_af=normalizeLogWeights(lnZ_af),w_vi=normalizeLogWeights(lnZ_vi)) %>% ungroup()  %>%
-  ggplot(aes(x=w_af,y=w_vi,col=factor(fgeneid)))+geom_point()+facet_wrap(~tsigb,scales = "free")+ggtitle("Normalized Variational Lower Bound vs Normalized Log-Likelihood","10 values of sigma_beta")+ylab("Normalized Variational Lower Bound")+xlab("Normalized Marginalized Log-Likelihood")
+
+Just for fun, let's try using variational inference to estimate $\sigma_u$.  (We'll use  $\frac{\hat{\beta}}{s}$ as $\hat{\beta}$, and set $s_i=1$, for all $i$)
+
+
+```{r optim_vi ,echo=F,eval=F}
+sigu_bounds <- c(min(tparam_df_norm$tsigu)/2,max(tparam_df_norm$tsigu)*2)
+ng <- ncol(betahat_mat_norm)
+tresl_vi <- list()
+pb <- progress_bar$new(total=ng)
+i <- 1
+for(i in 1:ng){
+  
+  betahat <- betahat_mat_norm[,i]
+  se <- se_mat_norm[,i]
+  vit <- system.time(xrss <- rssr_norm(R,betahat = betahat,
+                  se=se,
+                  sigu_bounds = sigu_bounds))[3]
+  tresl_vi[[i]] <-mutate(xrss,fgeneid=i,time=vit)
+ pb$tick()
+}
 ```
+
+```{r save_optim_vi ,echo=F,eval=F}
+saveRDS(tresl_vi,"~/Dropbox/eqtl_estimation/output/tresl_vi.RDS")
+
+```
+
+```{r load_optim_vi ,echo=F}
+tresl_vi <- readRDS("~/Dropbox/eqtl_estimation/output/tresl_vi.RDS")
+```
+
+
+
+```{r,plot_optim_vi}
+
+vi_df <- bind_rows(tresl_vi) %>% mutate(method="VI") %>% inner_join(tparam_df_norm)
+bvf_df <- rbind(bf_df,vi_df)  
+
+ggplot(bvf_df,aes(x=tsigu,y=sigu,col=method))+geom_point()+geom_abline(intercept=0,slope=1)+ggtitle("Estimate of sigma_u vs true value of sigma_u")+facet_wrap(~method)
+```
+
+
+```{r,plot_optim_vi_speed}
+ggplot(bvf_df,aes(x=method,y=time))+geom_boxplot()+ggtitle("Runtime of optimization")+ylab("seconds")+scale_y_log10()
+```
+
+## With confounding term
+
+Adding a term for confounding is straightforward to implement
+
+```{Rcpp}
+#include <RcppEigen.h>
+// [[Rcpp::depends(RcppEigen)]]
+using namespace Rcpp;
+typedef Eigen::Map<Eigen::ArrayXd> mapa;
+typedef Eigen::Map<Eigen::MatrixXd> mapmat;
+
+//[[Rcpp::export]]
+double norm_alfun_cpp(const mapa par,const mapa dvec, const mapmat uhq, const mapmat quh,const double N){
+  const double sigu=par(0);
+  const double varu=sigu*sigu;
+  const double a=par(1);
+  double tsum = ((dvec*dvec*varu+dvec+N*a).log()).sum();
+  double tprod = (uhq*(1/(dvec*dvec*varu+dvec+N*a)).matrix().asDiagonal()*quh).coeff(0,0);
+  //  uh.matrix().transpose()*rinv*Q;
+//  Rcpp::Rcout<<"tprod: "<<tprod<<std::endl;
+  return -(-0.5*(tsum+tprod));
+}
+```
+
+
+```{r,aform_confound}
+evd_anorm <- function(R,betahat,se,sigu_bounds=c(0.3,2.6),a_bounds=c(0-1e-6,1),N=1458){
+  revd <- eigen(R)
+  rd <- revd$values
+  Q <- revd$vectors
+  uh <- betahat/se
+  quh <- t(Q)%*%uh
+  uhq <- t(uh)%*%Q
+  minb <- c(sigu_bounds[1],
+            a_bounds[1])
+  maxb <- c(sigu_bounds[2],
+            a_bounds[2])
+  par0 <- runif(2,min=minb,max = maxb)
+  ldat  <- optim(par0,fn=norm_alfun_cpp,lower=minb,upper=maxb,method = "L-BFGS-B",
+                 dvec=rd,uhq=uhq,quh=quh,N=N)
+  
+  return(data_frame(sigu=ldat$par[1],a=ldat$par[2],lnZ=ldat$value))
+}
+```
+
+```{r optim_confound ,echo=F,eval=F}
+sigu_bounds <- c(min(tparam_df_norm$tsigu)/2,max(tparam_df_norm$tsigu)*2)
+
+ng <- ncol(betahat_mat_norm)
+tresl_ct <- list()
+pb <- progress_bar$new(total=ng)
+i <- 1
+for(i in 1:ng){
+  
+  betahat <- betahat_mat_norm[,i]
+  se <- se_mat_norm[,i]
+  at <- system.time(xrss <- evd_anorm(R,betahat = betahat,
+                  se=se,
+                  sigu_bounds = sigu_bounds))[3]
+  tresl_ct[[i]] <-mutate(xrss,fgeneid=i,time=at)
+ pb$tick()
+}
+```
+
+```{r save_optim_confound ,echo=F,eval=F}
+saveRDS(tresl_ct,"~/Dropbox/eqtl_estimation/output/tresl_ct.RDS")
+
+```
+
+```{r load_optim_confound ,echo=F}
+tresl_ct <- readRDS("~/Dropbox/eqtl_estimation/output/tresl_ct.RDS")
+```
+
+
+```{r,plot_optim_confound}
+a_df <- bind_rows(tresl_ct,bf_df) %>% mutate(method="Confounding") %>% inner_join(tparam_df_norm)
+bvf_df <- rbind(bf_df,select(a_df,-a))  
+
+ggplot(bvf_df,aes(x=tsigu,y=sigu,col=method))+geom_point()+geom_abline(intercept=0,slope=1)+ggtitle("Estimate of sigma_u vs true value of sigma_u")+facet_wrap(~method)
+```
+
+
+
+
 
