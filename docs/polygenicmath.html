@@ -328,23 +328,37 @@ shared across the workflowr files. -->
 <p><span class="math display">\[\hat{\beta}|\beta \sim N(SRS^{-1}\beta,SRS)\]</span> Where <span class="math inline">\(R\)</span> is the population LD matrix, and <span class="math inline">\(S\)</span> is a diagonal matrix with entires <span class="math inline">\(S_{jj}=\frac{1}{\text{se}(\hat{\beta}_j)}\)</span> This means that if <span class="math inline">\(\beta \sim N(0,I\sigma_{\beta}^2)\)</span> , then we can obtain the the marginalized form of <span class="math inline">\(\hat{\beta}\)</span> by substituting <span class="math display">\[A=SRS^{-1}\]</span> <span class="math display">\[\rho=0\]</span> <span class="math display">\[\Lambda=I\sigma_{\beta}^2\]</span> and <span class="math display">\[\Sigma=SRS\]</span></p>
 <p><span class="math display">\[\hat{\beta} \sim N(0,(SRS^{-1})I\sigma_{\beta}^2(SRS^{-1})^{T}+SRS)=N(0,\sigma_{\beta}^2 SRS^{-2}RS+SRS)\]</span></p>
 </div>
-<div id="estimating-sigma_beta2" class="section level2">
-<h2>Estimating <span class="math inline">\(\sigma_{\beta}^2\)</span></h2>
-<p>I’ve simulated data under 10 different values of <span class="math inline">\(\sigma_{\beta}^2\)</span>, and will try to estimate these parameters using a grid search in a modified version of <code>RSS</code>, and a grid search using a multivariate normal distribution.</p>
+<div id="rss-with-standardized-effect-size-and-polygenic-prior" class="section level2">
+<h2>RSS with standardized effect size and polygenic prior</h2>
+<p>If we define <span class="math inline">\(\hat{u_i}=\hat{\beta_i}/s_i\)</span> ,the likelihood becomes</p>
+<p><span class="math display">\[\hat{u}|u \sim N(Ru,R)\]</span></p>
+<p>The marginalized form is</p>
+<p><span class="math display">\[\hat{u} \sim N(0,\sigma^2_uR^2+R)\]</span> Let <span class="math inline">\(V(\sigma_u) = \sigma_u^2R^2+R=\sigma^2_u(R+\frac{1}{\sigma^2_u}I)R\)</span></p>
+<p>Using an eigen decomposition of <span class="math inline">\(R\)</span> (<span class="math inline">\(R=QDQ^T\)</span>), we arrive at the log-likelihood function:</p>
+<p><span class="math display">\[l(\sigma_u)=-\frac{1}{2}\left[\sum_i \log(d_i\sigma_u^2+1) + \hat{u}^TR^{-1}Q \text{diag}(\frac{1}{d_i\sigma_u^2+1})Q^T\hat{u}\right]\]</span></p>
 </div>
-<div id="results" class="section level2">
-<h2>Results</h2>
-<p><img src="figure/polygenicmath.Rmd/plot1-1.png" width="672" style="display: block; margin: auto;" /></p>
-<p>Both methods seem to give pretty similar results. Which one has a lower relative error (defined as <span class="math inline">\(\frac{|x-y|}{|x|+|y|}\)</span>)? <img src="figure/polygenicmath.Rmd/plot2-1.png" width="672" style="display: block; margin: auto;" /></p>
+<div id="estimating-sigma_u2" class="section level2">
+<h2>Estimating <span class="math inline">\(\sigma_{u}^2\)</span></h2>
+<p>I’ll use Xiang’s <code>example2</code>, genotype data to simulate <span class="math inline">\(\hat{u}\)</span>, then try to estimate <span class="math inline">\(\sigma_u\)</span>. As a control, I’ll use the naive multivariate normal density as well as the decomposed form to try to estimate <span class="math inline">\(\sigma_u\)</span></p>
+<pre><code>Joining, by = &quot;fgeneid&quot;</code></pre>
+<p><img src="figure/polygenicmath.Rmd/plot_optim_af-1.png" width="672" style="display: block; margin: auto;" /></p>
 </div>
-<div id="performance" class="section level2">
-<h2>Performance</h2>
-<p>Surprisingly, the variational inference method is several times faster. This is likely because the variational method doesn’t have to compute the determinant of the covariance matrix, which is an <span class="math inline">\(O(n^3)\)</span> operation (at best) <img src="figure/polygenicmath.Rmd/plot3-1.png" width="672" style="display: block; margin: auto;" /></p>
+<div id="speedup-from-evd" class="section level2">
+<h2>Speedup from EVD</h2>
+<p><img src="figure/polygenicmath.Rmd/plot_optim_af_speed-1.png" width="672" style="display: block; margin: auto;" /></p>
 </div>
-<div id="directly-comparing-the-lower-bound-to-the-log-likelihood" class="section level2">
-<h2>Directly Comparing the lower-bound to the log-likelihood</h2>
-<p>Finally, This is a comparison of the normalized log-likelihood to the normalized variational lower-bound. Normalization in this context means exponentiating the log lower-bound values (or log-likelihoods), and dividing by the sum of these exponentiated values (using the log-sum-exp trick).</p>
-<p><img src="figure/polygenicmath.Rmd/plotnormvb-1.png" width="672" style="display: block; margin: auto;" /></p>
+<div id="comparison-with-variational-inference" class="section level2">
+<h2>Comparison with variational inference</h2>
+<p>Just for fun, let’s try using variational inference to estimate <span class="math inline">\(\sigma_u\)</span>. (We’ll use <span class="math inline">\(\frac{\hat{\beta}}{s}\)</span> as <span class="math inline">\(\hat{\beta}\)</span>, and set <span class="math inline">\(s_i=1\)</span>, for all <span class="math inline">\(i\)</span>)</p>
+<pre><code>Joining, by = &quot;fgeneid&quot;</code></pre>
+<p><img src="figure/polygenicmath.Rmd/plot_optim_vi-1.png" width="672" style="display: block; margin: auto;" /></p>
+<p><img src="figure/polygenicmath.Rmd/plot_optim_vi_speed-1.png" width="672" style="display: block; margin: auto;" /></p>
+</div>
+<div id="with-confounding-term" class="section level2">
+<h2>With confounding term</h2>
+<p>Adding a term for confounding is straightforward to implement</p>
+<pre><code>Joining, by = c(&quot;fgeneid&quot;, &quot;tpve&quot;, &quot;tsigb&quot;, &quot;tpi&quot;, &quot;replicate&quot;, &quot;tlogodds&quot;, &quot;tsigu&quot;)</code></pre>
+<p><img src="figure/polygenicmath.Rmd/plot_optim_confound-1.png" width="672" style="display: block; margin: auto;" /></p>
 </div>
 </div>
 
